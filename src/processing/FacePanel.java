@@ -31,37 +31,40 @@ import static org.bytedeco.javacpp.opencv_core.*;
 import static org.bytedeco.javacpp.opencv_imgproc.*;
 import static org.bytedeco.javacpp.opencv_objdetect.*;
 import static org.bytedeco.javacpp.helper.opencv_objdetect.cvHaarDetectObjects;
-import org.bytedeco.javacpp.opencv_face.FaceRecognizer;
-import static org.bytedeco.javacpp.opencv_face.createLBPHFaceRecognizer;
 import org.bytedeco.javacpp.opencv_objdetect.CvHaarClassifierCascade;
 import org.bytedeco.javacpp.videoInputLib.videoInput;
 import org.bytedeco.javacv.CanvasFrame;
 import org.bytedeco.javacv.FrameGrabber;
 import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.OpenCVFrameConverter;
+import org.bytedeco.javacv.OpenCVFrameConverter.ToIplImage;
 
 public class FacePanel extends JPanel implements Runnable {
 
-    /* dimensions of each image; the panel is the same size as the image */
+    private FrameGrabber grabber;
+
+    /* Dimensões de cada imagem; o painel é do mesmo tamanho das imagens */
     private static final int WIDTH = 640;
     private static final int HEIGHT = 480;
 
-    private static final int DELAY = 100;  // time (ms) between redraws of the panel
+    private static final int DELAY = 100;  // Tempo (ms) delay para desenhar o painel
 
     private static final int CAMERA_ID = 0;
 
     private static final int IM_SCALE = 4;
     private static final int SMALL_MOVE = 5;
+    
+    // tempo (ms) entre cada detecção de face
     private static final int DETECT_DELAY = 500;
-    // time (ms) between each face detection
+    
     private static final int MAX_TASKS = 4;
-    // max no. of tasks that can be waiting to be executed
+    // Nr. máximo de tarefas que podem ficar aguardando no executor
 
-    // cascade definition to be used for face detection
+    // Modelo cascata utilizado para detecção das faces (Disponibilizado pelo OpenCV)
     private static final String FACE_CASCADE_FNM = "haarcascade_frontalface_alt.xml";
     // "haarcascade_frontalface_alt2.xml";
 
-    // for saving a detected face image
+    // Atributos para salvar uma imagem
     private static final String FACE_DIR = "savedFaces";
     private static final String FACE_FNM = "face";
     private static String FACE_ID;
@@ -72,24 +75,24 @@ public class FacePanel extends JPanel implements Runnable {
     private volatile boolean isRunning;
     private volatile boolean isFinished;
 
-    // used for the average ms snap time information
+    // Usado para disponibilizar tempo da captura das imagens
     private int imageCount = 0;
     private long totalTime = 0;
     private Font msgFont;
 
-    // JavaCV variables
+    // Variáveis do JavaCV
     private CvHaarClassifierCascade classifier;
     private CvMemStorage storage;
     private CanvasFrame debugCanvas;
     private IplImage grayIm;
 
-    // used for thread that executes the face detection
+    // Usado para as threads que executam a detecção das faces
     private ExecutorService executor;
     private AtomicInteger numTasks;
-    // used to record number of detection tasks
+    
+    // Usado para armazenar número de tarefas de detecção
     private long detectStartTime = 0;
 
-    private ReconizerTraining rt;
     private String identificacao;           // Identificação da pessoa pelo LBPH 
     private IplImage[] facesTreinamento;    // Armazena as faces para treinamento do LBPH
     private LBPHFaceRecognizer lbphFaceRecognizer;
@@ -159,7 +162,7 @@ public class FacePanel extends JPanel implements Runnable {
      if the number of tasks is < MAX_TASKS (one will be executing, the others
      waiting)
      */ {
-        FrameGrabber grabber = initGrabber(CAMERA_ID);
+        grabber = initGrabber(CAMERA_ID);
         if (grabber == null) {
             return;
         }
@@ -181,18 +184,6 @@ public class FacePanel extends JPanel implements Runnable {
             duration = System.currentTimeMillis() - startTime;
             totalTime += duration;
 
-            if (saveFace) {
-                for (int i = 0; i < lbphFaceRecognizer.getNUM_IMAGES_PER_PERSON(); i++) {
-                    facesTreinamento[i] = snapIm;
-                }
-                try {
-                    lbphFaceRecognizer.learnNewFace(FACE_ID, facesTreinamento);
-                } catch (Exception ex) {
-                    Logger.getLogger(FacePanel.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                saveFace = false;
-            }
-
             if (duration < DELAY) {
                 try {
                     Thread.sleep(DELAY - duration);  // wait until DELAY time has passed
@@ -202,7 +193,7 @@ public class FacePanel extends JPanel implements Runnable {
             }
 
         }
-        closeGrabber(grabber, CAMERA_ID);
+        closeGrabber(CAMERA_ID);
         System.out.println("Execution End");
         isFinished = true;
 
@@ -236,7 +227,7 @@ public class FacePanel extends JPanel implements Runnable {
         return im;
     }  // end of picGrab()
 
-    private void closeGrabber(FrameGrabber grabber, int ID) {
+    public void closeGrabber(int ID) {
         try {
             grabber.stop();
             grabber.release();
@@ -307,24 +298,20 @@ public class FacePanel extends JPanel implements Runnable {
     } // end of closeDown()
 
     // ------------------------- face tracking ----------------------------
-    private void trackFace(final IplImage img) /* Create a separate thread for the time-consuming detection task:
+    private void trackFace(IplImage img) /* Create a separate thread for the time-consuming detection task:
        find a face in the current image, store its coordinates in faceRect, and
        save the face part of the image in a file if requested. 
      Print the time taken for all of this to stdout.
      */ {
-        grayIm = scaleGray(img);
         numTasks.getAndIncrement();     // increment no. of tasks before entering queue
         executor.execute(new Runnable() {
             public void run() {
                 detectStartTime = System.currentTimeMillis();
-                CvRect rect = findFace(grayIm);
+                CvRect rect = findFace(img);
                 if (rect != null) {
 
-                    // Desenha retângulo
+                    // Seta parâmetros do retângulo
                     setRectangle(rect);
-
-                    //Identifica a face e exibe sua identificação
-                    identificacao = lbphFaceRecognizer.identifyFace(grayIm);
                 }
                 long detectDuration = System.currentTimeMillis() - detectStartTime;
                 System.out.println(" detection duration: " + detectDuration + "ms");
@@ -351,8 +338,11 @@ public class FacePanel extends JPanel implements Runnable {
         return smallImg;
     }  // end of scaleGray()
 
-    private CvRect findFace(IplImage grayIm) // Find a single face using the Haar detector
+    private CvRect findFace(IplImage img) // Find a single face using the Haar detector
     {
+        // Converte para escalas de Cinza
+        grayIm = scaleGray(img);
+
         /*
      // show the greyscale image to check on image processing steps
      debugCanvas.showImage(grayIm);
@@ -376,6 +366,13 @@ public class FacePanel extends JPanel implements Runnable {
         }
 
         CvRect rect = new CvRect(cvGetSeqElem(faces, 0));
+        
+        if (saveFace) {
+            learnNewFace(img);
+        }
+
+        //Identifica o rosto
+        identificacao = lbphFaceRecognizer.identifyFace(grayIm);
 
         cvClearMemStorage(storage);
         return rect;
@@ -414,7 +411,25 @@ public class FacePanel extends JPanel implements Runnable {
         FACE_ID = faceID;
     }
 
-    private void clipSaveFace(IplImage img) /* clip the image using the current face rectangle, and save it into fnm
+    private void learnNewFace(IplImage img) {
+        numTasks.getAndIncrement();         // increment no. of tasks before entering queue
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    for (int i = 0; i < lbphFaceRecognizer.getNUM_IMAGES_PER_PERSON(); i++) {
+                        facesTreinamento[i] = img;//clipSaveFace(img);
+                    }
+                    lbphFaceRecognizer.saveNewFace(FACE_ID, facesTreinamento);
+                    saveFace = false;
+                } catch (Exception ex) {
+                    Logger.getLogger(FacePanel.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        });
+    }
+
+    private IplImage clipSaveFace(IplImage img) /* clip the image using the current face rectangle, and save it into fnm
      The use of faceRect is in a synchronized block since it may be being
      updated or used for drawing at the same time in other threads.
      */ {
@@ -423,7 +438,7 @@ public class FacePanel extends JPanel implements Runnable {
         synchronized (faceRect) {
             if (faceRect.width == 0) {
                 System.out.println("No face selected");
-                return;
+                return img;
             }
             OpenCVFrameConverter.ToIplImage grabberConverter = new OpenCVFrameConverter.ToIplImage();
             Java2DFrameConverter paintConverter = new Java2DFrameConverter();
@@ -436,7 +451,11 @@ public class FacePanel extends JPanel implements Runnable {
             }
         }
         if (clipIm != null) {
-            saveClip(clipIm);
+            BufferedImage grayIm = resizeImage(clipIm);
+            BufferedImage faceIm = clipToFace(grayIm);
+            return toIplImage(faceIm);
+        } else {
+            return img;
         }
     }  // end of clipSaveFace()
 
@@ -510,12 +529,36 @@ public class FacePanel extends JPanel implements Runnable {
         }
     }  // end of saveImage()
 
+    private IplImage toIplImage(BufferedImage bufImage) {
+
+        ToIplImage iplConverter = new OpenCVFrameConverter.ToIplImage();
+        Java2DFrameConverter java2dConverter = new Java2DFrameConverter();
+        IplImage iplImage = iplConverter.convert(java2dConverter.convert(bufImage));
+        return iplImage;
+    }
+
     public void pausarThread() {
         isRunning = false;
     }
 
     public void reiniciarThread() {
         isRunning = true;
+    }
+
+    public IplImage getGrayIm() {
+        return grayIm;
+    }
+
+    public void setGrayIm(IplImage grayIm) {
+        this.grayIm = grayIm;
+    }
+
+    public processing.LBPHFaceRecognizer getLbphFaceRecognizer() {
+        return lbphFaceRecognizer;
+    }
+
+    public void setLbphFaceRecognizer(processing.LBPHFaceRecognizer lbphFaceRecognizer) {
+        this.lbphFaceRecognizer = lbphFaceRecognizer;
     }
 
 } // end of FacePanel class

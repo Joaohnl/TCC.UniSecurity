@@ -13,6 +13,7 @@ import java.util.Properties;
 import java.util.Set;
 import org.bytedeco.javacpp.DoublePointer;
 import org.bytedeco.javacpp.IntPointer;
+import org.bytedeco.javacpp.helper.opencv_core;
 import static org.bytedeco.javacpp.opencv_core.CV_32SC1;
 import org.bytedeco.javacpp.opencv_core.CvMat;
 import org.bytedeco.javacpp.opencv_core.CvRect;
@@ -33,12 +34,11 @@ import static org.bytedeco.javacpp.opencv_imgproc.CV_INTER_LINEAR;
 import static org.bytedeco.javacpp.opencv_imgproc.cvCvtColor;
 import static org.bytedeco.javacpp.opencv_imgproc.cvEqualizeHist;
 import static org.bytedeco.javacpp.opencv_imgproc.cvResize;
-import org.bytedeco.javacpp.opencv_objdetect;
 import org.bytedeco.javacpp.opencv_objdetect.CvHaarClassifierCascade;
 
 public class LBPHFaceRecognizer {
 
-    private String faceDataFolder = "D:\\TCC\\br.unisantos.UniSecurity2\\";
+    private String faceDataFolder = "C:\\TCC.UniSecurity\\";
     private String imageDataFolder = faceDataFolder + "att_faces\\";
     private final String CASCADE_FILE = "C:\\opencv\\data\\haarcascades\\haarcascade_frontalface_alt.xml";
     private final String frBinary_DataFile = faceDataFolder + "frBinary.dat";
@@ -48,8 +48,8 @@ public class LBPHFaceRecognizer {
     private Properties dataMap = new Properties();
 
     private final int NUM_IMAGES_PER_PERSON = 10;
-    double binaryTreshold = 100;
-    int highConfidenceLevel = 85;
+    double binaryTreshold = 130;
+    int highConfidenceLevel = 75;
 
     private FaceRecognizer fr_binary = null;
 
@@ -60,12 +60,11 @@ public class LBPHFaceRecognizer {
 
     private void createModels() {
         fr_binary = createLBPHFaceRecognizer(1, 8, 8, 8, binaryTreshold);
-//        ReconizerTraining rt = new ReconizerTraining(fr_binary);
-//        fr_binary.save("frBinary.dat");
+        //ReconizerTraining rt = new ReconizerTraining(this);
+        //fr_binary.save("frBinary.dat");
     }
 
     public String identifyFace(IplImage image) {
-        System.err.println("==========================================================");
         String personName = "";
 
         Mat imagem = new Mat(image);
@@ -82,34 +81,65 @@ public class LBPHFaceRecognizer {
             result = ids.get(0);
 
             if (result > -1 && distance.get(0) < highConfidenceLevel) {
-                personName = (String) dataMap.get("" + result);
+                personName = (String) dataMap.get("" + result) + " confiança: " + distance.get(0);
+            } else {
+                personName = "Não identificado!";
             }
         }
 
         return personName;
     }
 
-    //The logic to learn a new face is to store the recorded images to a folder and retrain the model
-    //will be replaced once update feature is available
-    public boolean learnNewFace(String personName, IplImage[] images) throws Exception {
-        int memberCounter = dataMap.size();
-        if (dataMap.containsValue(personName)) {
-            Set keys = dataMap.keySet();
-            Iterator ite = keys.iterator();
-            while (ite.hasNext()) {
-                String personKeyForTraining = (String) ite.next();
-                String personNameForTraining = (String) dataMap.getProperty(personKeyForTraining);
-                if (personNameForTraining.equals(personName)) {
-                    memberCounter = Integer.parseInt(personKeyForTraining);
-                    System.err.println("Person already exist.. re-learning..");
-                }
+    public String identifyFace(Mat imagem) {
+        String personName = "";
+
+        Set keys = dataMap.keySet();
+
+        if (keys.size() > 0) {
+            IntPointer ids = new IntPointer(1);
+            DoublePointer distance = new DoublePointer(1);
+            int result = -1;
+
+            fr_binary.predict(imagem, ids, distance);
+
+            //just deriving a confidence number against treshold
+            result = ids.get(0);
+
+            if (result > -1 && distance.get(0) < highConfidenceLevel) {
+                personName = (String) dataMap.get("" + result) + " confiança: " + distance.get(0);
+            } else {
+                personName = "Não identificado!";
             }
         }
-        dataMap.put("" + memberCounter, personName);
-        storeTrainingImages(personName, images);
-        retrainAll();
 
-        return true;
+        return personName;
+    }
+
+    // The logic to learn a new face is to store the recorded images to a folder and retrain the model
+    // will be replaced once update feature is available
+    // Bloco esta de forma sincronizada pois as threads de identificação também podem utilizar o arquivo
+    // binário para localizar a pessoa identificada
+    public boolean saveNewFace(String personName, IplImage[] images) throws Exception {
+        synchronized (frBinary_DataFile) {
+            int memberCounter = dataMap.size();
+            if (dataMap.containsValue(personName)) {
+                Set keys = dataMap.keySet();
+                Iterator ite = keys.iterator();
+                while (ite.hasNext()) {
+                    String personKeyForTraining = (String) ite.next();
+                    String personNameForTraining = (String) dataMap.getProperty(personKeyForTraining);
+                    if (personNameForTraining.equals(personName)) {
+                        memberCounter = Integer.parseInt(personKeyForTraining);
+                        System.err.println("Person already exist.. re-learning..");
+                    }
+                }
+            }
+            dataMap.put("" + memberCounter, personName);
+            storeTrainingImages(personName, images);
+            retrainAll();
+
+            return true;
+        }
     }
 
     public IplImage preprocessImage(IplImage image, CvRect r) {
@@ -123,7 +153,7 @@ public class LBPHFaceRecognizer {
         return roi;
     }
 
-    private void retrainAll() throws Exception {
+    public void retrainAll() throws Exception {
         Set keys = dataMap.keySet();
         if (keys.size() > 0) {
             MatVector trainImages = new MatVector(keys.size() * NUM_IMAGES_PER_PERSON);
@@ -225,6 +255,9 @@ public class LBPHFaceRecognizer {
         return images;
     }
 
+//    public void updateTraining(String personName, IplImage[] imagens) {
+//        fr_binary.update(mv, opencv_core.AbstractMat.EMPTY);
+//    }
     public int getNUM_IMAGES_PER_PERSON() {
         return NUM_IMAGES_PER_PERSON;
     }
@@ -261,14 +294,13 @@ public class LBPHFaceRecognizer {
         this.binaryTreshold = binaryTreshold;
     }
 
-    public int getHighConfidenceLevel() {
-        return highConfidenceLevel;
-    }
-
-    public void setHighConfidenceLevel(int highConfidenceLevel) {
-        this.highConfidenceLevel = highConfidenceLevel;
-    }
-
+//    public int getHighConfidenceLevel() {
+//        return highConfidenceLevel;
+//    }
+//
+//    public void setHighConfidenceLevel(int highConfidenceLevel) {
+//        this.highConfidenceLevel = highConfidenceLevel;
+//    }
     public FaceRecognizer getFr_binary() {
         return fr_binary;
     }
@@ -277,6 +309,4 @@ public class LBPHFaceRecognizer {
         this.fr_binary = fr_binary;
     }
 
-    
-    
 }

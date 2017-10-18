@@ -1,30 +1,23 @@
 package gui;
 
-// FaceTracker.java
-// Andrew Davison, July 2013, ad@fivedots.psu.ac.th
 
-/* Show a sequence of images snapped from a webcam in a picture panel (FacePanel). 
-   A face is highlighted with a yellow rectangle, which is updated as the face
-   moves. The highlighted part of the image can be saved by the user pressing
-   the "Save Face" button.
+/* Mostra uma sequência de imagens capturadas da webcam em um Painel (FacePanel).
+   Uma face é destacada com um quadrado verde.
+   É possível salvar a imagem destacada apertado o botão salvar face.
 
-   Usage:
-      > java FaceTracker
  */
 import java.awt.*;
 import java.awt.event.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.*;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacpp.opencv_objdetect;
 import processing.FacePanel;
-import processing.LBPHFaceRecognizer;
 
 public class telaPrincipal extends JFrame {
-    // GUI components
+    // Componentes da interface do usuário
 
     private FacePanel facePanel;
+    private JButton btnTreinarModelo;
 
     public telaPrincipal() {
         super("UniSecurity");
@@ -32,64 +25,55 @@ public class telaPrincipal extends JFrame {
         Container c = getContentPane();
         c.setLayout(new BorderLayout());
 
-        // Preload the opencv_objdetect module to work around a known bug.
+        // précarrega módulo opencv_objdetect para resolver bug conhecido.
         Loader.load(opencv_objdetect.class);
-        
-        facePanel = new FacePanel(); // the sequence of pictures appear here
+
+        facePanel = new FacePanel(); // sequência de imagens aparece aqui.
         c.add(facePanel, BorderLayout.CENTER);
-        
 
         // Botão para salvar face detectada
         JButton btnSalvarFace = new JButton("Salvar Face");
-        JButton btnTreinarModelo = new JButton("Treinar Modelo");
-        
-        JTextField txtIdentificacao = new JTextField();
-        txtIdentificacao.setText("Insira o RA do aluno");
-        
-        //Limpa o campo de texto assim que é clicado
-        txtIdentificacao.addMouseListener(new MouseAdapter(){           
-            @Override
-            public void mouseClicked(MouseEvent e){
-                txtIdentificacao.setText("");
-            }
-        });
-        
-        
-        txtIdentificacao.addKeyListener(new KeyAdapter() {
-            // Habilita ou desabilita o botão de salvar face.
-            // Campo de ter 9 digítos (tamanho do RA dos alunos) para habilitar o botão.
-            @Override
-            public void keyReleased(KeyEvent e) { // Observa entrada de dígitos no campo
-                try {
-                    int teste = Integer.parseInt(txtIdentificacao.getText());
-                    if (txtIdentificacao.getText().length() != 9) {
-                        btnSalvarFace.setEnabled(false);
-                    } else {
-                        btnSalvarFace.setEnabled(true);
-                    }
-                } catch (NumberFormatException exc) {
-                    txtIdentificacao.setText("");
-                }
+        btnTreinarModelo = new JButton("Treinar Modelo");
 
-            }
-        });
-        
+        JLabel lbl_RA = new JLabel("Insira o RA:");
+
+        JTextField txtIdentificacao = new JTextField("Insira o RA do aluno");
+
+//        txtIdentificacao.addKeyListener(new KeyAdapter() {
+//            // Habilita ou desabilita o botão de salvar face.
+//            // Campo do RA precisa ter 9 digítos (tamanho do RA dos alunos) para habilitar o botão.
+//            @Override
+//            public void keyReleased(KeyEvent e) { // Observa entrada de dígitos no campo
+//                try {
+//                    int teste = Integer.parseInt(txtIdentificacao.getText());
+//                    if (txtIdentificacao.getText().length() != 9) {
+//                        btnSalvarFace.setEnabled(false);
+//                    } else {
+//                        btnSalvarFace.setEnabled(true);
+//                    }
+//                } catch (NumberFormatException exc) {
+//                    txtIdentificacao.setText("");
+//                }
+//
+//            }
+//        });
         btnSalvarFace.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 facePanel.saveFace(txtIdentificacao.getText());
             }
         });
-        
-        btnSalvarFace.setEnabled(false);
 
+        //btnSalvarFace.setEnabled(false);
         JPanel p = new JPanel();
+        p.add(lbl_RA);
         p.add(txtIdentificacao);
         p.add(btnSalvarFace);
+        p.add(btnTreinarModelo);
         c.add(p, BorderLayout.SOUTH);
 
         addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) {
-                facePanel.closeDown();    // stop snapping pics
+                facePanel.closeDown();    // para de tirar imagens do dispositivo de câmera
                 System.exit(0);
             }
         });
@@ -99,4 +83,4 @@ public class telaPrincipal extends JFrame {
         setLocationRelativeTo(null);
         setVisible(true);
     }
-} // end of FaceTracker class
+} //Fim da classe telaPrincipal
