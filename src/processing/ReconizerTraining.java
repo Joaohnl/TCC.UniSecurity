@@ -5,18 +5,13 @@
  */
 package processing;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FilenameFilter;
-import java.io.IOException;
-import java.nio.IntBuffer;
-import static org.bytedeco.javacpp.opencv_core.CV_32SC1;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.MatVector;
-import org.bytedeco.javacpp.opencv_face.FaceRecognizer;
-import static org.bytedeco.javacpp.opencv_imgcodecs.CV_LOAD_IMAGE_GRAYSCALE;
-import static org.bytedeco.javacpp.opencv_imgcodecs.imread;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.bytedeco.javacpp.opencv_core.IplImage;
+import static org.bytedeco.javacpp.opencv_imgcodecs.cvLoadImage;
+import static org.bytedeco.javacpp.opencv_imgproc.CV_BGR2GRAY;
 
 /**
  *
@@ -24,9 +19,9 @@ import static org.bytedeco.javacpp.opencv_imgcodecs.imread;
  */
 public class ReconizerTraining {
 
-    private String caminhoBD = "D:\\TCC\\br.unisantos.UniSecurity2\\att_faces\\";
+    private String caminhoBD = "C:\\TCC.UniSecurity\\att_faces\\training\\";
 
-    public ReconizerTraining(FaceRecognizer facerecognizer) {
+    public ReconizerTraining(LBPHFaceRecognizer facerecognizer) {
 
         FilenameFilter imgFilter = new FilenameFilter() {
             @Override
@@ -36,49 +31,35 @@ public class ReconizerTraining {
             }
         };
 
-        try (FileReader arq = new FileReader(caminhoBD + "attfaces.txt")) {
-            String caminhoPastaImagens;
-            int identificacao;
-            File pastaImagens;
-            File[] arquivoImagens;
-            MatVector imagens;
-            Mat identificacoes;
-            IntBuffer bufferIdentificacoes;
-            int counter;
+        File pastaImagens;
+        File[] arquivoImagens;
+        IplImage[][] imagens;
+        int ID, nrFoto;
+        String[] identificacoes;
 
-            BufferedReader lerArq = new BufferedReader(arq);
-            String linha = lerArq.readLine();
-            while (linha != null) {
-                caminhoPastaImagens = linha.substring(0, linha.indexOf(";"));
-                identificacao = Integer.parseInt(linha.substring(linha.indexOf(";") + 1, linha.length()));
+        pastaImagens = new File(caminhoBD);
+        arquivoImagens = pastaImagens.listFiles(imgFilter);
 
-                pastaImagens = new File(caminhoPastaImagens);
-                arquivoImagens = pastaImagens.listFiles(imgFilter);
+        identificacoes = new String[arquivoImagens.length / 10];
+        imagens = new IplImage[arquivoImagens.length / 10][10];
 
-                imagens = new MatVector(arquivoImagens.length);
+        for (File imagem : arquivoImagens) {
+            IplImage img = cvLoadImage(imagem.getAbsolutePath(), CV_BGR2GRAY);
+            ID = Integer.parseInt(imagem.getName().substring(1, imagem.getName().indexOf('_'))) - 1;
+            nrFoto = Integer.parseInt(imagem.getName().substring(imagem.getName().indexOf('_') + 1, imagem.getName().indexOf('.')));
+            identificacoes[ID] = imagem.getName().substring(0, imagem.getName().indexOf('_'));
 
-                identificacoes = new Mat(arquivoImagens.length, 1, CV_32SC1);
-                bufferIdentificacoes = identificacoes.createBuffer();
+            imagens[ID][nrFoto - 1] = img;
+        }
+        try {
+            for (int i = 0; i < imagens.length; i++) {
 
-                counter = 0;
-
-                for (File imagem : arquivoImagens) {
-                    Mat img = imread(imagem.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
-
-                    imagens.put(counter, img);
-                    
-                    bufferIdentificacoes.put(counter, identificacao);
-                    
-                    counter++;
-                }
-                facerecognizer.train(imagens, identificacoes);
-                linha = lerArq.readLine();
+                facerecognizer.saveNewFace(identificacoes[i], imagens[i]);
             }
 
-            arq.close();
-        } catch (IOException e) {
-            System.err.printf("Erro na abertura do arquivo: %s.\n",
-                    e.getMessage());
+            facerecognizer.retrainAll();
+        } catch (Exception ex) {
+            Logger.getLogger(ReconizerTraining.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 }
