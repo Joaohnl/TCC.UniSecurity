@@ -65,54 +65,62 @@ public class LBPHFaceRecognizer {
     }
 
     public String identifyFace(IplImage image) {
-        String personName = "";
+        synchronized (dataMap) {
+            synchronized (fr_binary) {
+                String personName = "";
 
-        Mat imagem = new Mat(image);
+                Mat imagem = new Mat(image);
 
-        Set keys = dataMap.keySet();
+                Set keys = dataMap.keySet();
 
-        if (keys.size() > 0) {
-            IntPointer ids = new IntPointer(1);
-            DoublePointer distance = new DoublePointer(1);
-            int result = -1;
+                if (keys.size() > 0) {
+                    IntPointer ids = new IntPointer(1);
+                    DoublePointer distance = new DoublePointer(1);
+                    int result = -1;
 
-            fr_binary.predict(imagem, ids, distance);
-            //just deriving a confidence number against treshold
-            result = ids.get(0);
+                    fr_binary.predict(imagem, ids, distance);
+                    // Derivando nível de confiança contra o threshold
+                    result = ids.get(0);
 
-            if (result > -1 && distance.get(0) < highConfidenceLevel) {
-                personName = (String) dataMap.get("" + result) + " confiança: " + distance.get(0);
-            } else {
-                personName = "Não identificado!";
+                    if (result > -1 && distance.get(0) < highConfidenceLevel) {
+                        personName = (String) dataMap.get("" + result) + " confiança: " + distance.get(0);
+                    } else {
+                        personName = "Não identificado!";
+                    }
+                }
+
+                return personName;
             }
         }
-
-        return personName;
     }
 
     public String identifyFace(Mat imagem) {
-        String personName = "";
+        synchronized (dataMap) {
+            synchronized (fr_binary) {
+                String personName = "";
 
-        Set keys = dataMap.keySet();
+                Set keys = dataMap.keySet();
 
-        if (keys.size() > 0) {
-            IntPointer ids = new IntPointer(1);
-            DoublePointer distance = new DoublePointer(1);
-            int result = -1;
+                if (keys.size() > 0) {
+                    IntPointer ids = new IntPointer(1);
+                    DoublePointer distance = new DoublePointer(1);
+                    int result = -1;
 
-            fr_binary.predict(imagem, ids, distance);
+                    fr_binary.predict(imagem, ids, distance);
 
-            //just deriving a confidence number against treshold
-            result = ids.get(0);
+                    //Derivando confiança contra a threshold
+                    result = ids.get(0);
 
-            if (result > -1 && distance.get(0) < highConfidenceLevel) {
-                personName = (String) dataMap.get("" + result) + " confiança: " + distance.get(0);
-            } else {
-                personName = "Não identificado!";
+                    if (result > -1 && distance.get(0) < highConfidenceLevel) {
+                        personName = (String) dataMap.get("" + result) + " confiança: " + distance.get(0);
+                    } else {
+                        personName = "Não identificado!";
+                    }
+                }
+
+                return personName;
             }
         }
-
-        return personName;
     }
 
     // The logic to learn a new face is to store the recorded images to a folder and retrain the model
@@ -121,24 +129,26 @@ public class LBPHFaceRecognizer {
     // binário para localizar a pessoa identificada
     public boolean saveNewFace(String personName, IplImage[] images) throws Exception {
         synchronized (frBinary_DataFile) {
-            int memberCounter = dataMap.size();
-            if (dataMap.containsValue(personName)) {
-                Set keys = dataMap.keySet();
-                Iterator ite = keys.iterator();
-                while (ite.hasNext()) {
-                    String personKeyForTraining = (String) ite.next();
-                    String personNameForTraining = (String) dataMap.getProperty(personKeyForTraining);
-                    if (personNameForTraining.equals(personName)) {
-                        memberCounter = Integer.parseInt(personKeyForTraining);
-                        System.err.println("Person already exist.. re-learning..");
+            synchronized (dataMap) {
+                int memberCounter = dataMap.size();
+                if (dataMap.containsValue(personName)) {
+                    Set keys = dataMap.keySet();
+                    Iterator ite = keys.iterator();
+                    while (ite.hasNext()) {
+                        String personKeyForTraining = (String) ite.next();
+                        String personNameForTraining = (String) dataMap.getProperty(personKeyForTraining);
+                        if (personNameForTraining.equals(personName)) {
+                            memberCounter = Integer.parseInt(personKeyForTraining);
+                            System.err.println("Pessoa já existe no banco de dados.. aprendendo novamente..");
+                        }
                     }
                 }
-            }
-            dataMap.put("" + memberCounter, personName);
-            storeTrainingImages(personName, images);
-            retrainAll();
+                dataMap.put("" + memberCounter, personName);
+                storeTrainingImages(personName, images);
+                retrainAll();
 
-            return true;
+                return true;
+            }
         }
     }
 
@@ -154,37 +164,41 @@ public class LBPHFaceRecognizer {
     }
 
     public void retrainAll() throws Exception {
-        Set keys = dataMap.keySet();
-        if (keys.size() > 0) {
-            MatVector trainImages = new MatVector(keys.size() * NUM_IMAGES_PER_PERSON);
-            CvMat trainLabels = CvMat.create(keys.size() * NUM_IMAGES_PER_PERSON, 1, CV_32SC1);
-            Iterator ite = keys.iterator();
-            int count = 0;
+        synchronized (dataMap) {
+            synchronized (fr_binary) {
+                Set keys = dataMap.keySet();
+                if (keys.size() > 0) {
+                    MatVector trainImages = new MatVector(keys.size() * NUM_IMAGES_PER_PERSON);
+                    CvMat trainLabels = CvMat.create(keys.size() * NUM_IMAGES_PER_PERSON, 1, CV_32SC1);
+                    Iterator ite = keys.iterator();
+                    int count = 0;
 
-            System.err.print("Loading images for training...");
-            while (ite.hasNext()) {
-                String personKeyForTraining = (String) ite.next();
-                String personNameForTraining = (String) dataMap.getProperty(personKeyForTraining);
-                IplImage[] imagesForTraining = readImages(personNameForTraining);
-                IplImage grayImage = IplImage.create(imagesForTraining[0].width(), imagesForTraining[0].height(), IPL_DEPTH_8U, 1);
+                    System.err.print("Carregando imagens para treinamento...");
+                    while (ite.hasNext()) {
+                        String personKeyForTraining = (String) ite.next();
+                        String personNameForTraining = (String) dataMap.getProperty(personKeyForTraining);
+                        IplImage[] imagesForTraining = readImages(personNameForTraining);
+                        IplImage grayImage = IplImage.create(imagesForTraining[0].width(), imagesForTraining[0].height(), IPL_DEPTH_8U, 1);
 
-                for (int i = 0; i < imagesForTraining.length; i++) {
-                    trainLabels.put(count, 0, Integer.parseInt(personKeyForTraining));
-                    cvCvtColor(imagesForTraining[i], grayImage, CV_BGR2GRAY);
-                    Mat imagemTreino = new Mat(grayImage);
-                    trainImages.put(count, imagemTreino);
-                    count++;
+                        for (int i = 0; i < imagesForTraining.length; i++) {
+                            trainLabels.put(count, 0, Integer.parseInt(personKeyForTraining));
+                            cvCvtColor(imagesForTraining[i], grayImage, CV_BGR2GRAY);
+                            Mat imagemTreino = new Mat(grayImage);
+                            trainImages.put(count, imagemTreino);
+                            count++;
+                        }
+                        //storeNormalizedImages(personNameForTraining, imagesForTraining);
+                    }
+
+                    System.err.println("concluído.");
+
+                    System.err.print("Treinando modelo binário ....");
+                    Mat imagemTreino = new Mat(trainLabels);
+                    fr_binary.train(trainImages, imagemTreino);
+                    System.err.println("concluído.");
+                    storeTrainingData();
                 }
-                //storeNormalizedImages(personNameForTraining, imagesForTraining);
             }
-
-            System.err.println("done.");
-
-            System.err.print("Training Binary model ....");
-            Mat imagemTreino = new Mat(trainLabels);
-            fr_binary.train(trainImages, imagemTreino);
-            System.err.println("done.");
-            storeTrainingData();
         }
 
     }
@@ -200,9 +214,9 @@ public class LBPHFaceRecognizer {
             }
 
             File binaryDataFile = new File(frBinary_DataFile);
-            System.err.print("Loading Binary model ....");
+            System.err.print("Carregando modelo binário ....");
             fr_binary.load(frBinary_DataFile);
-            System.err.println("done");
+            System.err.println("concluído.");
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -210,7 +224,7 @@ public class LBPHFaceRecognizer {
     }
 
     private void storeTrainingData() throws Exception {
-        System.err.print("Storing training models ....");
+        System.err.print("Salvando modelo binário ....");
 
         File binaryDataFile = new File(frBinary_DataFile);
         if (binaryDataFile.exists()) {
@@ -226,7 +240,7 @@ public class LBPHFaceRecognizer {
         dataMap.store(fos, "");
         fos.close();
 
-        System.err.println("done.");
+        System.err.println("concluído.");
     }
 
     public void storeTrainingImages(String personName, IplImage[] images) {
