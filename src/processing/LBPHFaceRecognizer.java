@@ -65,60 +65,34 @@ public class LBPHFaceRecognizer {
     }
 
     public String identifyFace(IplImage image) {
-        synchronized (dataMap) {
-            synchronized (fr_binary) {
-                String personName = "";
+        synchronized (fr_binary) {
+            synchronized (frBinary_DataFile) {
+                synchronized (dataMap) {
 
-                Mat imagem = new Mat(image);
+                    String personName = "";
 
-                Set keys = dataMap.keySet();
+                    Mat imagem = new Mat(image);
 
-                if (keys.size() > 0) {
-                    IntPointer ids = new IntPointer(1);
-                    DoublePointer distance = new DoublePointer(1);
-                    int result = -1;
+                    Set keys = dataMap.keySet();
 
-                    fr_binary.predict(imagem, ids, distance);
-                    // Derivando nível de confiança contra o threshold
-                    result = ids.get(0);
+                    if (keys.size() > 0) {
+                        IntPointer ids = new IntPointer(1);
+                        DoublePointer distance = new DoublePointer(1);
+                        int result = -1;
 
-                    if (result > -1 && distance.get(0) < highConfidenceLevel) {
-                        personName = (String) dataMap.get("" + result) + " confiança: " + distance.get(0);
-                    } else {
-                        personName = "Não identificado!";
+                        fr_binary.predict(imagem, ids, distance);
+                        // Derivando nível de confiança contra o threshold
+                        result = ids.get(0);
+
+                        if (result > -1 && distance.get(0) < highConfidenceLevel) {
+                            personName = (String) dataMap.get("" + result) + " confiança: " + distance.get(0);
+                        } else {
+                            personName = "Não identificado!";
+                        }
                     }
+
+                    return personName;
                 }
-
-                return personName;
-            }
-        }
-    }
-
-    public String identifyFace(Mat imagem) {
-        synchronized (dataMap) {
-            synchronized (fr_binary) {
-                String personName = "";
-
-                Set keys = dataMap.keySet();
-
-                if (keys.size() > 0) {
-                    IntPointer ids = new IntPointer(1);
-                    DoublePointer distance = new DoublePointer(1);
-                    int result = -1;
-
-                    fr_binary.predict(imagem, ids, distance);
-
-                    //Derivando confiança contra a threshold
-                    result = ids.get(0);
-
-                    if (result > -1 && distance.get(0) < highConfidenceLevel) {
-                        personName = (String) dataMap.get("" + result) + " confiança: " + distance.get(0);
-                    } else {
-                        personName = "Não identificado!";
-                    }
-                }
-
-                return personName;
             }
         }
     }
@@ -152,51 +126,43 @@ public class LBPHFaceRecognizer {
         }
     }
 
-    public IplImage preprocessImage(IplImage image, CvRect r) {
-        IplImage gray = cvCreateImage(cvGetSize(image), IPL_DEPTH_8U, 1);
-        IplImage roi = cvCreateImage(cvGetSize(image), IPL_DEPTH_8U, 1);
-        CvRect r1 = new CvRect(r.x() - 10, r.y() - 10, r.width() + 10, r.height() + 10);
-        cvCvtColor(image, gray, CV_BGR2GRAY);
-        cvSetImageROI(gray, r1);
-        cvResize(gray, roi, CV_INTER_LINEAR);
-        cvEqualizeHist(roi, roi);
-        return roi;
-    }
-
     public void retrainAll() throws Exception {
-        synchronized (dataMap) {
-            synchronized (fr_binary) {
-                Set keys = dataMap.keySet();
-                if (keys.size() > 0) {
-                    MatVector trainImages = new MatVector(keys.size() * NUM_IMAGES_PER_PERSON);
-                    CvMat trainLabels = CvMat.create(keys.size() * NUM_IMAGES_PER_PERSON, 1, CV_32SC1);
-                    Iterator ite = keys.iterator();
-                    int count = 0;
+        synchronized (fr_binary) {
+            synchronized (frBinary_DataFile) {
+                synchronized (dataMap) {
 
-                    System.err.print("Carregando imagens para treinamento...");
-                    while (ite.hasNext()) {
-                        String personKeyForTraining = (String) ite.next();
-                        String personNameForTraining = (String) dataMap.getProperty(personKeyForTraining);
-                        IplImage[] imagesForTraining = readImages(personNameForTraining);
-                        IplImage grayImage = IplImage.create(imagesForTraining[0].width(), imagesForTraining[0].height(), IPL_DEPTH_8U, 1);
+                    Set keys = dataMap.keySet();
+                    if (keys.size() > 0) {
+                        MatVector trainImages = new MatVector(keys.size() * NUM_IMAGES_PER_PERSON);
+                        CvMat trainLabels = CvMat.create(keys.size() * NUM_IMAGES_PER_PERSON, 1, CV_32SC1);
+                        Iterator ite = keys.iterator();
+                        int count = 0;
 
-                        for (int i = 0; i < imagesForTraining.length; i++) {
-                            trainLabels.put(count, 0, Integer.parseInt(personKeyForTraining));
-                            cvCvtColor(imagesForTraining[i], grayImage, CV_BGR2GRAY);
-                            Mat imagemTreino = new Mat(grayImage);
-                            trainImages.put(count, imagemTreino);
-                            count++;
+                        System.err.print("Carregando imagens para treinamento...");
+                        while (ite.hasNext()) {
+                            String personKeyForTraining = (String) ite.next();
+                            String personNameForTraining = (String) dataMap.getProperty(personKeyForTraining);
+                            IplImage[] imagesForTraining = readImages(personNameForTraining);
+                            IplImage grayImage = IplImage.create(imagesForTraining[0].width(), imagesForTraining[0].height(), IPL_DEPTH_8U, 1);
+
+                            for (int i = 0; i < imagesForTraining.length; i++) {
+                                trainLabels.put(count, 0, Integer.parseInt(personKeyForTraining));
+                                cvCvtColor(imagesForTraining[i], grayImage, CV_BGR2GRAY);
+                                Mat imagemTreino = new Mat(grayImage);
+                                trainImages.put(count, imagemTreino);
+                                count++;
+                            }
+                            //storeNormalizedImages(personNameForTraining, imagesForTraining);
                         }
-                        //storeNormalizedImages(personNameForTraining, imagesForTraining);
+
+                        System.err.println("concluído.");
+
+                        System.err.print("Treinando modelo binário ....");
+                        Mat imagemTreino = new Mat(trainLabels);
+                        fr_binary.train(trainImages, imagemTreino);
+                        System.err.println("concluído.");
+                        storeTrainingData();
                     }
-
-                    System.err.println("concluído.");
-
-                    System.err.print("Treinando modelo binário ....");
-                    Mat imagemTreino = new Mat(trainLabels);
-                    fr_binary.train(trainImages, imagemTreino);
-                    System.err.println("concluído.");
-                    storeTrainingData();
                 }
             }
         }
@@ -204,69 +170,86 @@ public class LBPHFaceRecognizer {
     }
 
     private void loadTrainingData() {
+        synchronized (fr_binary) {
+            synchronized (frBinary_DataFile) {
+                synchronized (dataMap) {
 
-        try {
-            File personNameMapFile = new File(personNameMappingFileName);
-            if (personNameMapFile.exists()) {
-                FileInputStream fis = new FileInputStream(personNameMappingFileName);
-                dataMap.load(fis);
-                fis.close();
+                    try {
+                        File personNameMapFile = new File(personNameMappingFileName);
+                        if (personNameMapFile.exists()) {
+                            FileInputStream fis = new FileInputStream(personNameMappingFileName);
+                            dataMap.load(fis);
+                            fis.close();
+                        }
+
+                        File binaryDataFile = new File(frBinary_DataFile);
+                        System.err.print("Carregando modelo binário ....");
+                        fr_binary.load(frBinary_DataFile);
+                        System.err.println("concluído.");
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
             }
-
-            File binaryDataFile = new File(frBinary_DataFile);
-            System.err.print("Carregando modelo binário ....");
-            fr_binary.load(frBinary_DataFile);
-            System.err.println("concluído.");
-
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
     private void storeTrainingData() throws Exception {
-        System.err.print("Salvando modelo binário ....");
+        synchronized (fr_binary) {
+            synchronized (frBinary_DataFile) {
+                synchronized (dataMap) {
 
-        File binaryDataFile = new File(frBinary_DataFile);
-        if (binaryDataFile.exists()) {
-            binaryDataFile.delete();
+                    System.err.print("Salvando modelo binário ....");
+
+                    File binaryDataFile = new File(frBinary_DataFile);
+                    if (binaryDataFile.exists()) {
+                        binaryDataFile.delete();
+                    }
+                    fr_binary.save(frBinary_DataFile);
+
+                    File personNameMapFile = new File(personNameMappingFileName);
+                    if (personNameMapFile.exists()) {
+                        personNameMapFile.delete();
+                    }
+                    FileOutputStream fos = new FileOutputStream(personNameMapFile, false);
+                    dataMap.store(fos, "");
+                    fos.close();
+
+                    System.err.println("concluído.");
+                }
+            }
         }
-        fr_binary.save(frBinary_DataFile);
-
-        File personNameMapFile = new File(personNameMappingFileName);
-        if (personNameMapFile.exists()) {
-            personNameMapFile.delete();
-        }
-        FileOutputStream fos = new FileOutputStream(personNameMapFile, false);
-        dataMap.store(fos, "");
-        fos.close();
-
-        System.err.println("concluído.");
     }
 
     public void storeTrainingImages(String personName, IplImage[] images) {
-        for (int i = 0; i < images.length; i++) {
-            String imageFileName = imageDataFolder + "training\\" + personName + "_" + i + ".bmp";
-            File imgFile = new File(imageFileName);
-            if (imgFile.exists()) {
-                imgFile.delete();
+        synchronized (imageDataFolder) {
+            for (int i = 0; i < images.length; i++) {
+                String imageFileName = imageDataFolder + "training\\" + personName + "_" + i + ".bmp";
+                File imgFile = new File(imageFileName);
+                if (imgFile.exists()) {
+                    imgFile.delete();
+                }
+                cvSaveImage(imageFileName, images[i]);
             }
-            cvSaveImage(imageFileName, images[i]);
         }
     }
 
     private IplImage[] readImages(String personName) {
-        File imgFolder = new File(imageDataFolder);
-        IplImage[] images = null;
-        if (imgFolder.isDirectory() && imgFolder.exists()) {
-            images = new IplImage[NUM_IMAGES_PER_PERSON];
-            for (int i = 0; i < NUM_IMAGES_PER_PERSON; i++) {
-                String imageFileName = imageDataFolder + "training\\" + personName + "_" + i + ".bmp";
-                IplImage img = cvLoadImage(imageFileName);
-                images[i] = img;
-            }
+        synchronized (imageDataFolder) {
+            File imgFolder = new File(imageDataFolder);
+            IplImage[] images = null;
+            if (imgFolder.isDirectory() && imgFolder.exists()) {
+                images = new IplImage[NUM_IMAGES_PER_PERSON];
+                for (int i = 0; i < NUM_IMAGES_PER_PERSON; i++) {
+                    String imageFileName = imageDataFolder + "training\\" + personName + "_" + i + ".bmp";
+                    IplImage img = cvLoadImage(imageFileName);
+                    images[i] = img;
+                }
 
+            }
+            return images;
         }
-        return images;
     }
 
 //    public void updateTraining(String personName, IplImage[] imagens) {

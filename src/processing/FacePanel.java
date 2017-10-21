@@ -129,18 +129,16 @@ public class FacePanel extends JPanel implements Runnable {
 
     /*
         Deixa o painel no tamanho suficiente para uma imagem
-    */
-    public Dimension getPreferredSize()
-    {
+     */
+    public Dimension getPreferredSize() {
         return new Dimension(WIDTH, HEIGHT);
     }
-    
-    
+
     /*
         Exibe a imagem do dispositivo de captura a cada tempo de DELAY.
         A tarefa de detecção somente se inicia após cada tempo de DETECT_DELAY
         e somente se o número de tarefas no executor for menor que seu limite
-    */
+     */
     public void run() {
         grabber = initGrabber(CAMERA_ID);
         if (grabber == null) {
@@ -178,11 +176,10 @@ public class FacePanel extends JPanel implements Runnable {
         isFinished = true;
 
     }
-    
-    
+
     /*
         Inicia objeto de captura
-    */
+     */
     private FrameGrabber initGrabber(int ID) {
         FrameGrabber grabber = null;
         System.out.println("Inicializando captura pelo dispositivo: " + videoInput.getDeviceName(ID));
@@ -213,7 +210,7 @@ public class FacePanel extends JPanel implements Runnable {
 
     /*
         Finaliza a obtenção das imagens do dispositivo de câmera
-    */    
+     */
     public void closeGrabber(int ID) {
         try {
             grabber.stop();
@@ -221,14 +218,14 @@ public class FacePanel extends JPanel implements Runnable {
         } catch (Exception e) {
             System.out.println("Problem stopping grabbing for camera " + ID);
         }
-    } 
-    
+    }
+
     /*
         Desenha a imagem, o retângulo em volta a da face detectada e a média de tempo
         de obtenção das imagens da câmera no canto inferior esquerdo do painel.
         No canto superior exibe a face identificada.
         O tempo exibido não inclui a tarefa de detecção do rosto.
-    */
+     */
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
@@ -250,7 +247,6 @@ public class FacePanel extends JPanel implements Runnable {
 
             // Escreve as estatísticas no canto inferior esquerdo
             g2.drawString(statsMsg, 5, HEIGHT - 10);
-            
 
             drawRect(g2);
         } else {  // Caso ainda não obtiver nenhuma imagem
@@ -259,12 +255,11 @@ public class FacePanel extends JPanel implements Runnable {
         }
     }
 
-    
     /*
         Usa o retângulo da face a desenhar o retângulo verde em torno da face
         O desenho do retângulo está em um bloco sincronizado pois a variável faceRect pode estar sendo
         utilizada em outra thread.
-    */
+     */
     private void drawRect(Graphics2D g2) {
         synchronized (faceRect) {
             if (faceRect.width == 0) {
@@ -279,10 +274,9 @@ public class FacePanel extends JPanel implements Runnable {
         }
     }
 
-    
     /*  Termina a execução do run() e espera a finalização do sistema.
         Para a aplicação até que sua execução termine.
-    */
+     */
     public void closeDown() /* Terminate run() and wait for it to finish.
      This stops the application from exiting until everything
      has finished. */ {
@@ -295,17 +289,11 @@ public class FacePanel extends JPanel implements Runnable {
         }
     }
 
-    
-    
-    
-    
-    
     // ------------------------- face tracking ----------------------------\\
-    
     /*  Cria um thread para detectar faces nas imagens geradas pela câmera.
         Armazena as coordenadas das faces em faceRect e salva a imagem para treinamento caso solicitado.
         Imprime o tempo de execução no console
-    */
+     */
     private void trackFace(IplImage img) {
         numTasks.getAndIncrement();     // Incrementa o número de tarefas antes de entrar na fila
         executor.execute(new Runnable() {
@@ -316,6 +304,9 @@ public class FacePanel extends JPanel implements Runnable {
 
                     // Seta parâmetros do retângulo
                     setRectangle(rect);
+                } else {
+                    identificacao = "Não identificado!";
+                    faceRect.setBounds(0, 0, 0, 0);
                 }
                 long detectDuration = System.currentTimeMillis() - detectStartTime;
                 System.out.println(" detection duration: " + detectDuration + "ms");
@@ -324,11 +315,10 @@ public class FacePanel extends JPanel implements Runnable {
         });
     }
 
-    
     /*  Formata a imagem e converte para escala de cinza. Formatação deixa a imagem menor
         tornando o processamento mais rápido.
         O detector Haar precisa como parâmetro a imagem em escala de cinza    
-    */
+     */
     private IplImage scaleGray(IplImage img) {
         // Converte para escalas de cinza
         IplImage grayImg = cvCreateImage(cvGetSize(img), IPL_DEPTH_8U, 1);
@@ -342,14 +332,12 @@ public class FacePanel extends JPanel implements Runnable {
         // Equaliza a imagem menor em escalas de cinza
         cvEqualizeHist(smallImg, smallImg);
         return smallImg;
-    } 
+    }
 
-    
     /*  Detecta somente uma face utilizando o Haar Detector
         Chama a função para a identificação do rosto encontrado.
-    */
-    private CvRect findFace(IplImage img) 
-    {
+     */
+    private CvRect findFace(IplImage img) {
         // Converte para escalas de Cinza
         grayIm = scaleGray(img);
 
@@ -368,7 +356,7 @@ public class FacePanel extends JPanel implements Runnable {
         if (total == 0) {
             System.out.println("No faces found");
             return null;
-       } else if (total > 1) //Este caso não deveria ocorrer. Incluído por segurança
+        } else if (total > 1) //Este caso não deveria ocorrer. Incluído por segurança
         {
             System.out.println("Multiple faces detected (" + total + "); using the first");
         } else {
@@ -388,15 +376,13 @@ public class FacePanel extends JPanel implements Runnable {
         return rect;
     }
 
-    
-    
     /* Extrai o tamanho e as coordenadas da imagem desatacada da estrutura do retângulo do JavaCV
        e armazena em um retângulo Java.
        Durante o processo, desfaz o escalonamento que foi aplicado a imagem antes da detecção do rosto.
        Disponibiliza informações de movimento do rosto na imagem.
        O uso dessa função está em um bloco sincronizado pois o retângulo pode estar sendo utilizado para
        atualizar o painel de imagem ou pintura do retângulo ao mesmo tempo em outras threads.
-    */
+     */
     private void setRectangle(CvRect r) {
         synchronized (faceRect) {
             int xNew = r.x() * IM_SCALE;
@@ -431,13 +417,14 @@ public class FacePanel extends JPanel implements Runnable {
             public void run() {
                 try {
                     for (int i = 0; i < lbphFaceRecognizer.getNUM_IMAGES_PER_PERSON(); i++) {
-                        facesTreinamento[i] = img; //clipSaveFace(img);
+                        facesTreinamento[i] = scaleGray(img);
                     }
                     lbphFaceRecognizer.saveNewFace(FACE_ID, facesTreinamento);
                     saveFace = false;
                 } catch (Exception ex) {
                     Logger.getLogger(FacePanel.class.getName()).log(Level.SEVERE, null, ex);
                 }
+                numTasks.getAndDecrement();             //Decrementa número de tarefas quando execução termina
             }
         });
     }
@@ -499,7 +486,7 @@ public class FacePanel extends JPanel implements Runnable {
         System.out.println("Scaled gray (w,h): (" + nWidth + ", " + nHeight + ")");
         return grayIm;
     }
-        
+
 
     /* Corta a imagem em no tamanho FACE_WIDTHxFACE-HEIGHT
        Assume que a imagem do parâmetro é do tamanho da face ou maior
@@ -521,10 +508,8 @@ public class FacePanel extends JPanel implements Runnable {
         }
         return faceIm;
     }
-        
-        
+
     /* Converte uma BufferedImage para IplImage para utilização do OpenCV */
-    
     private IplImage toIplImage(BufferedImage bufImage) {
         ToIplImage iplConverter = new OpenCVFrameConverter.ToIplImage();
         Java2DFrameConverter java2dConverter = new Java2DFrameConverter();
