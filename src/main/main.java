@@ -1,8 +1,6 @@
 package main;
 
-import gui.telaPrincipal;
-import org.bytedeco.javacpp.Loader;
-import org.bytedeco.javacpp.opencv_objdetect;
+import gui.ReconhecimentoFace;
 
 /**
  *
@@ -23,20 +21,19 @@ public class main {
                 }
             }
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(telaPrincipal.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(ReconhecimentoFace.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
+        //</editor-fold>
         //</editor-fold>
         
         //</editor-fold>
-        // Carregar biblioteca de detecção para evitar bugs conhecidos.
-        Loader.load(opencv_objdetect.class);
 
 
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             @Override
             public void run() {
-                new telaPrincipal();
+                new ReconhecimentoFace();
             }
         });
     }
