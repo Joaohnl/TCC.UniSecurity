@@ -5,19 +5,29 @@
  */
 package gui;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.bytedeco.javacv.FrameGrabber;
+import processing.LBPHFaceRecognizer;
+import processing.PainelReconhecimento;
+
 /**
  *
  * @author Joao_
  */
 public class telaPrincipal extends javax.swing.JFrame {
+    
 
-    private ReconhecimentoFace telaReconhecimento;
+    private InterCadastro telaCadastro;
+    private PainelReconhecimento painelReconhecimento;
+    private LBPHFaceRecognizer reconhecedor;
     
     /**
      * Creates new form telaPrincipal
      */
     public telaPrincipal() {
         initComponents();
+        reconhecedor = new LBPHFaceRecognizer();
     }
 
     /**
@@ -33,6 +43,8 @@ public class telaPrincipal extends javax.swing.JFrame {
         jToggleButton2 = new javax.swing.JToggleButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setLocation(new java.awt.Point(0, 0));
+        setSize(new java.awt.Dimension(400, 70));
 
         jToggleButton1.setText("Reconhecimento Facial");
         jToggleButton1.addActionListener(new java.awt.event.ActionListener() {
@@ -55,9 +67,9 @@ public class telaPrincipal extends javax.swing.JFrame {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(jToggleButton1)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 56, Short.MAX_VALUE)
                 .addComponent(jToggleButton2)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGap(22, 22, 22))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -66,18 +78,23 @@ public class telaPrincipal extends javax.swing.JFrame {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jToggleButton1)
                     .addComponent(jToggleButton2))
-                .addContainerGap(156, Short.MAX_VALUE))
+                .addContainerGap(32, Short.MAX_VALUE))
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
     private void jToggleButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jToggleButton1ActionPerformed
-        telaReconhecimento = new ReconhecimentoFace();
+        try {
+            painelReconhecimento = new PainelReconhecimento(reconhecedor);
+        } catch (FrameGrabber.Exception ex) {
+            Logger.getLogger(telaPrincipal.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }//GEN-LAST:event_jToggleButton1ActionPerformed
 
     private void jToggleButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jToggleButton2ActionPerformed
-        telaReconhecimento.dispose();
+        telaCadastro = new InterCadastro(reconhecedor);
+        telaCadastro.setVisible(true);
     }//GEN-LAST:event_jToggleButton2ActionPerformed
 
     /**

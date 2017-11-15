@@ -1,6 +1,7 @@
 package main;
 
-import gui.ReconhecimentoFace;
+import gui.CadastroFace;
+import gui.telaPrincipal;
 
 /**
  *
@@ -21,8 +22,12 @@ public class main {
                 }
             }
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(ReconhecimentoFace.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(CadastroFace.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
+        //</editor-fold>
+        //</editor-fold>
+        
+        //</editor-fold>
         //</editor-fold>
         //</editor-fold>
         
@@ -33,7 +38,7 @@ public class main {
         java.awt.EventQueue.invokeLater(new Runnable() {
             @Override
             public void run() {
-                new ReconhecimentoFace();
+                new telaPrincipal().setVisible(true);
             }
         });
     }

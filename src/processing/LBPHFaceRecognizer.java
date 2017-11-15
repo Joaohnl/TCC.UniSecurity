@@ -26,24 +26,21 @@ import static org.bytedeco.javacpp.opencv_imgcodecs.cvLoadImage;
 import static org.bytedeco.javacpp.opencv_imgcodecs.cvSaveImage;
 import static org.bytedeco.javacpp.opencv_imgproc.CV_BGR2GRAY;
 import static org.bytedeco.javacpp.opencv_imgproc.cvCvtColor;
-import org.bytedeco.javacpp.opencv_objdetect.CvHaarClassifierCascade;
 
 public class LBPHFaceRecognizer {
 
-    private String faceDataFolder = "C:\\TCC.UniSecurity\\";
-    private String imageDataFolder = faceDataFolder + "att_faces\\";
-    private final String CASCADE_FILE = "C:\\opencv\\data\\haarcascades\\haarcascade_frontalface_alt.xml";
-    private final String frBinary_DataFile = faceDataFolder + "frBinary.dat";
-    private final String personNameMappingFileName = faceDataFolder + "personNumberMap.properties";
+    private static final String faceDataFolder = "C:\\TCC.UniSecurity\\";
+    private final String imageDataFolder = faceDataFolder + "src\\fotos\\";
+    private final String frBinary_DataFile = faceDataFolder + "src\\recursos\\frBinary.dat";
+    private static final String personNameMappingFileName = faceDataFolder + "src\\recursos\\personNumberMap.properties";
 
-    private final CvHaarClassifierCascade cascade = new CvHaarClassifierCascade(cvLoad(CASCADE_FILE));
     private Properties dataMap = new Properties();
 
     private ArduinoSerial portaCOM;
 
     private final int NUM_IMAGES_PER_PERSON = 10;
     double binaryTreshold = 130;
-    int highConfidenceLevel = 60;
+    int highConfidenceLevel = 75;
 
     private FaceRecognizer fr_binary = null;
 
@@ -57,39 +54,69 @@ public class LBPHFaceRecognizer {
 
     private void createModels() {
         fr_binary = createLBPHFaceRecognizer(1, 8, 8, 8, binaryTreshold);
-        //ReconizerTraining rt = new ReconizerTraining(this);
-        //fr_binary.save("frBinary.dat");
+//        ReconizerTraining rt = new ReconizerTraining(this);
+//        fr_binary.save("frBinary.dat");
     }
 
     public String identifyFace(IplImage image) {
+        synchronized (dataMap) {
+            String personName = "";
 
-        String personName = "";
+            Mat imagem = new Mat(image);
 
-        Mat imagem = new Mat(image);
+            Set keys = dataMap.keySet();
 
-        Set keys = dataMap.keySet();
+            if (keys.size() > 0) {
+                IntPointer ids = new IntPointer(1);
+                DoublePointer distance = new DoublePointer(1);
+                int result = -1;
 
-        if (keys.size() > 0) {
-            IntPointer ids = new IntPointer(1);
-            DoublePointer distance = new DoublePointer(1);
-            int result = -1;
+                fr_binary.predict(imagem, ids, distance);
+                // Derivando nível de confiança contra o threshold
+                result = ids.get(0);
 
-            fr_binary.predict(imagem, ids, distance);
-            // Derivando nível de confiança contra o threshold
-            result = ids.get(0);
-
-            if (result > -1 && distance.get(0) < highConfidenceLevel) {
-                personName = (String) dataMap.get("" + result) + " confiança: " + distance.get(0);
-                if (personName != null) {
-                    portaCOM.send("l");
-                    portaCOM.send("d");
+                if (result > -1 && distance.get(0) < highConfidenceLevel) {
+                    personName = (String) dataMap.get("" + result) + " confiança: " + distance.get(0);
+                    if (personName != null) {
+                        portaCOM.send("l");
+                        portaCOM.send("d");
+                    }
+                } else {
+                    personName = "Não identificado!";
                 }
-            } else {
-                personName = "Não identificado!";
             }
+            return personName;
         }
+    }
 
-        return personName;
+    public String identifyFace(Mat imagem) {
+        synchronized (dataMap) {
+            String personName = "";
+
+            Set keys = dataMap.keySet();
+
+            if (keys.size() > 0) {
+                IntPointer rotulo = new IntPointer(1);
+                DoublePointer confianca = new DoublePointer(1);
+                int result = -1;
+
+                fr_binary.predict(imagem, rotulo, confianca);
+                // Derivando nível de confiança contra o threshold
+                result = rotulo.get(0);
+
+                if (result > -1 && rotulo.get(0) < highConfidenceLevel) {
+                    personName = (String) dataMap.get("" + result) + " confianca: " + confianca.get(0);
+                    if (personName != null) {
+                        portaCOM.send("l");
+                        portaCOM.send("d");
+                    }
+                } else {
+                    personName = "Não identificado!";
+                }
+            }
+
+            return personName;
+        }
     }
 
     // The logic to learn a new face is to store the recorded images to a folder and retrain the model
@@ -171,7 +198,6 @@ public class LBPHFaceRecognizer {
                 fis.close();
             }
 
-            File binaryDataFile = new File(frBinary_DataFile);
             System.err.print("Carregando modelo binário ....");
             fr_binary.load(frBinary_DataFile);
             System.err.println("concluído.");
@@ -209,7 +235,7 @@ public class LBPHFaceRecognizer {
     public void storeTrainingImages(String personName, IplImage[] images) {
         synchronized (imageDataFolder) {
             for (int i = 0; i < images.length; i++) {
-                String imageFileName = imageDataFolder + "training\\" + personName + "_" + i + ".bmp";
+                String imageFileName = imageDataFolder + personName + "-" + i + ".jpg";
                 File imgFile = new File(imageFileName);
                 if (imgFile.exists()) {
                     imgFile.delete();
@@ -225,12 +251,14 @@ public class LBPHFaceRecognizer {
             IplImage[] images = null;
             if (imgFolder.isDirectory() && imgFolder.exists()) {
                 images = new IplImage[NUM_IMAGES_PER_PERSON];
-                for (int i = 0; i < NUM_IMAGES_PER_PERSON; i++) {
-                    String imageFileName = imageDataFolder + "training\\" + personName + "_" + i + ".bmp";
+                for (int i = 1; i <= NUM_IMAGES_PER_PERSON; i++) {
+                    String imageFileName = imageDataFolder + personName + "-" + i + ".jpg";
                     IplImage img = cvLoadImage(imageFileName);
-                    images[i] = img;
-                    if (images[i] == null) continue;
-                    
+                    images[i - 1] = img;
+                    if (images[i - 1] == null) {
+                        continue;
+                    }
+
                 }
             }
             return images;
@@ -239,57 +267,15 @@ public class LBPHFaceRecognizer {
     }
 
     public void updateTraining(String personName, IplImage[] imagens) {
-       // fr_binary.update(mv,imagens);
+        // fr_binary.update(mv,imagens);
     }
+
     public int getNUM_IMAGES_PER_PERSON() {
         return NUM_IMAGES_PER_PERSON;
     }
 
-    public String getFaceDataFolder() {
-        return faceDataFolder;
-    }
-
-    public void setFaceDataFolder(String faceDataFolder) {
-        this.faceDataFolder = faceDataFolder;
-    }
-
-    public String getImageDataFolder() {
-        return imageDataFolder;
-    }
-
-    public void setImageDataFolder(String imageDataFolder) {
-        this.imageDataFolder = imageDataFolder;
-    }
-
     public Properties getDataMap() {
         return dataMap;
-    }
-
-    public void setDataMap(Properties dataMap) {
-        this.dataMap = dataMap;
-    }
-
-    public double getBinaryTreshold() {
-        return binaryTreshold;
-    }
-
-    public void setBinaryTreshold(double binaryTreshold) {
-        this.binaryTreshold = binaryTreshold;
-    }
-
-    public int getHighConfidenceLevel() {
-        return highConfidenceLevel;
-    }
-
-    public void setHighConfidenceLevel(int highConfidenceLevel) {
-        this.highConfidenceLevel = highConfidenceLevel;
-    }
-    public FaceRecognizer getFr_binary() {
-        return fr_binary;
-    }
-
-    public void setFr_binary(FaceRecognizer fr_binary) {
-        this.fr_binary = fr_binary;
     }
 
 }
