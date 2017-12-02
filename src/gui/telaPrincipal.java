@@ -32,6 +32,7 @@ public class telaPrincipal extends javax.swing.JFrame {
 
     private PainelReconhecimento painelReconhecimento;
     private LBPHFaceRecognizer reconhecedor;
+    private Thread threadReconhecimento;
 
     private CadastroFace cadastroFace;
     private int contaFotos = 1;
@@ -233,7 +234,9 @@ public class telaPrincipal extends javax.swing.JFrame {
 
     private void btnReconhecimentoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnReconhecimentoActionPerformed
         try {
-            painelReconhecimento = new PainelReconhecimento(reconhecedor);
+            painelReconhecimento = new PainelReconhecimento((reconhecedor));
+            threadReconhecimento = new Thread(painelReconhecimento);
+            threadReconhecimento.start();
         } catch (FrameGrabber.Exception ex) {
             Logger.getLogger(telaPrincipal.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -256,8 +259,8 @@ public class telaPrincipal extends javax.swing.JFrame {
         }
 
         for (int i = 0; i < reconhecedor.getNUMERO_IMAGENS_PESSOA(); i++) {
-            JOptionPane.showMessageDialog(null, "CONTAGEM DE FOTOS: " + (contaFotos - 1) +
-                                           "\n FOTOS NECESSESÁRIAS: " + (reconhecedor.getNUMERO_IMAGENS_PESSOA() - (contaFotos - 1)));
+            JOptionPane.showMessageDialog(this, "CONTAGEM DE FOTOS: " + (contaFotos - 1)
+                    + "\n FOTOS NECESSESÁRIAS: " + (reconhecedor.getNUMERO_IMAGENS_PESSOA() - (contaFotos - 1)));
 
             cadastroFace.getFacePanel().SalvarFace(cadastro, ID, contaFotos);
             contaFotos++;
@@ -267,14 +270,12 @@ public class telaPrincipal extends javax.swing.JFrame {
                 contaFotos = 1;
                 int retorno = reconhecedor.Treinamento();
                 if (retorno == 0) {
-                    JOptionPane.showMessageDialog(null, "Fotos salvas com sucesso!", "SUCESSO!", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "Alterações salvas com sucesso!", "SUCESSO!", JOptionPane.INFORMATION_MESSAGE);
                 } else if (retorno == 1) {
-                    JOptionPane.showMessageDialog(null, "Não há imagens no sistema!\n Ninguém será reconhecido!", "CUIDADO!", JOptionPane.WARNING_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "Não há imagens no sistema!\n Ninguém será reconhecido!", "CUIDADO!", JOptionPane.WARNING_MESSAGE);
                 } else {
-                    JOptionPane.showMessageDialog(null, "Erro! Não foi possível treinar o reconhecedor!\n\n Favor tentar novamente!", "ERRO!", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "Erro! Não foi possível treinar o reconhecedor!\n\n Favor tentar novamente!", "ERRO!", JOptionPane.ERROR_MESSAGE);
                 }
-                
-                
             }
             lstCadastros.setListData(listaCadastros);
         }
@@ -312,6 +313,15 @@ public class telaPrincipal extends javax.swing.JFrame {
         btnSalvarFace.setEnabled(false);
         cadastroFace.getFacePanel().closeDown();
         cadastroFace.dispose();
+
+        int retorno = reconhecedor.Treinamento();
+        if (retorno == 0) {
+            JOptionPane.showMessageDialog(this, "Alterações salvas com sucesso!", "SUCESSO!", JOptionPane.INFORMATION_MESSAGE);
+        } else if (retorno == 1) {
+            JOptionPane.showMessageDialog(this, "Não há imagens no sistema!\n Ninguém será reconhecido!", "CUIDADO!", JOptionPane.WARNING_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, "Erro! Não foi possível treinar o reconhecedor!\n\n Favor tentar novamente!", "ERRO!", JOptionPane.ERROR_MESSAGE);
+        }
     }//GEN-LAST:event_btnSairActionPerformed
 
     private void lstCadastrosValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_lstCadastrosValueChanged
@@ -322,8 +332,6 @@ public class telaPrincipal extends javax.swing.JFrame {
 
                 for (Map.Entry<Object, Object> entry : reconhecedor.getDataMap().entrySet()) {
                     if (entry.getValue().equals(lstCadastros.getSelectedValue())) {
-                        System.out.println("src\\fotos\\" + entry.getKey() + "."
-                                + lstCadastros.getSelectedValue() + "." + "0.jpg");
                         facebuff = ImageIO.read(new File("src\\fotos\\" + entry.getKey() + "."
                                 + lstCadastros.getSelectedValue() + "." + "0.jpg"));
                         txtMatricula.setText(entry.getKey().toString());
@@ -341,7 +349,6 @@ public class telaPrincipal extends javax.swing.JFrame {
 
     private void btnFimReconhecimentoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFimReconhecimentoActionPerformed
         painelReconhecimento.PararExecucao();
-
     }//GEN-LAST:event_btnFimReconhecimentoActionPerformed
 
     public static void SetTextoLog(String texto) {
