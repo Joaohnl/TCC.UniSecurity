@@ -1,86 +1,410 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package gui;
 
+import java.awt.List;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Vector;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
+import javax.swing.JOptionPane;
+import javax.swing.text.DefaultCaret;
+import org.bytedeco.javacv.FrameGrabber;
+import processing.LBPHFaceRecognizer;
+import processing.PainelReconhecimento;
 
-/* Mostra uma sequência de imagens capturadas da webcam em um Painel (FacePanel).
-   Uma face é destacada com um quadrado verde.
-   É possível salvar a imagem destacada apertado o botão salvar face.
-
+/**
+ *
+ * @author Joao_
  */
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
-import org.bytedeco.javacpp.Loader;
-import org.bytedeco.javacpp.opencv_objdetect;
-import processing.FacePanel;
+public class telaPrincipal extends javax.swing.JFrame {
 
-public class telaPrincipal extends JFrame {
-    // Componentes da interface do usuário
+    private PainelReconhecimento painelReconhecimento;
+    private LBPHFaceRecognizer reconhecedor;
 
-    private FacePanel facePanel;
-    private JButton btnTreinarModelo;
+    private CadastroFace cadastroFace;
+    private int contaFotos = 1;
 
+    private final String BDFACES = "src\\fotos\\";
+
+    private Map propriedades;
+    private Map<String, String> cadastros;
+    private Vector<String> listaCadastros;
+    private DefaultCaret caret;
+
+    /**
+     * Creates new form telaPrincipal
+     */
     public telaPrincipal() {
-        super("UniSecurity");
+        initComponents();
+        reconhecedor = new LBPHFaceRecognizer();
+        caret = (DefaultCaret) txtLog.getCaret();
+        caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+        listaCadastros = new Vector<String>();
 
-        Container c = getContentPane();
-        c.setLayout(new BorderLayout());
+        propriedades = reconhecedor.getDataMap();
 
-        // précarrega módulo opencv_objdetect para resolver bug conhecido.
-        Loader.load(opencv_objdetect.class);
+        // ADICIONA CADASTROS NA LISTAGEM
+        cadastros = new HashMap<String, String>(propriedades);
+        for (Map.Entry<String, String> entry : cadastros.entrySet()) {
+            listaCadastros.add(entry.getValue());
+        }
 
-        facePanel = new FacePanel(); // sequência de imagens aparece aqui.
-        c.add(facePanel, BorderLayout.CENTER);
+        lstCadastros.setListData(listaCadastros);
 
-        // Botão para salvar face detectada
-        JButton btnSalvarFace = new JButton("Salvar Face");
-        btnTreinarModelo = new JButton("Treinar Modelo");
-
-        JLabel lbl_RA = new JLabel("Insira o RA:");
-
-        JTextField txtIdentificacao = new JTextField("Insira o RA do aluno");
-
-//        txtIdentificacao.addKeyListener(new KeyAdapter() {
-//            // Habilita ou desabilita o botão de salvar face.
-//            // Campo do RA precisa ter 9 digítos (tamanho do RA dos alunos) para habilitar o botão.
-//            @Override
-//            public void keyReleased(KeyEvent e) { // Observa entrada de dígitos no campo
-//                try {
-//                    int teste = Integer.parseInt(txtIdentificacao.getText());
-//                    if (txtIdentificacao.getText().length() != 9) {
-//                        btnSalvarFace.setEnabled(false);
-//                    } else {
-//                        btnSalvarFace.setEnabled(true);
-//                    }
-//                } catch (NumberFormatException exc) {
-//                    txtIdentificacao.setText("");
-//                }
-//
-//            }
-//        });
-        btnSalvarFace.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                facePanel.saveFace(txtIdentificacao.getText());
-            }
-        });
-
-        //btnSalvarFace.setEnabled(false);
-        JPanel p = new JPanel();
-        p.add(lbl_RA);
-        p.add(txtIdentificacao);
-        p.add(btnSalvarFace);
-        p.add(btnTreinarModelo);
-        c.add(p, BorderLayout.SOUTH);
-
-        addWindowListener(new WindowAdapter() {
-            public void windowClosing(WindowEvent e) {
-                facePanel.closeDown();    // para de tirar imagens do dispositivo de câmera
-                System.exit(0);
-            }
-        });
-
-        setResizable(false);
-        pack();
-        setLocationRelativeTo(null);
-        setVisible(true);
     }
-} //Fim da classe telaPrincipal
+
+    /**
+     * This method is called from within the constructor to initialize the form.
+     * WARNING: Do NOT modify this code. The content of this method is always
+     * regenerated by the Form Editor.
+     */
+    @SuppressWarnings("unchecked")
+    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
+    private void initComponents() {
+
+        btnReconhecimento = new javax.swing.JToggleButton();
+        btnTreinamento = new javax.swing.JToggleButton();
+        jSeparator1 = new javax.swing.JSeparator();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        lstCadastros = new javax.swing.JList<>();
+        lblFace = new javax.swing.JLabel();
+        txtIdentificacao = new javax.swing.JTextField();
+        btnSalvarFace = new javax.swing.JButton();
+        btnRemover = new javax.swing.JButton();
+        btnSair = new javax.swing.JButton();
+        jScrollPane3 = new javax.swing.JScrollPane();
+        txtLog = new javax.swing.JTextArea();
+        lblNome = new javax.swing.JLabel();
+        lblMatricula = new javax.swing.JLabel();
+        txtMatricula = new javax.swing.JTextField();
+        btnFimReconhecimento = new javax.swing.JToggleButton();
+
+        setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setTitle("UniSecurity");
+        setLocation(new java.awt.Point(0, 0));
+        setResizable(false);
+        setSize(new java.awt.Dimension(800, 800));
+
+        btnReconhecimento.setText("Reconhecimento Facial");
+        btnReconhecimento.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnReconhecimentoActionPerformed(evt);
+            }
+        });
+
+        btnTreinamento.setText("Treinar modelo");
+        btnTreinamento.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnTreinamentoActionPerformed(evt);
+            }
+        });
+
+        jSeparator1.setOrientation(javax.swing.SwingConstants.VERTICAL);
+
+        lstCadastros.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+            public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
+                lstCadastrosValueChanged(evt);
+            }
+        });
+        jScrollPane1.setViewportView(lstCadastros);
+
+        lblFace.setBorder(javax.swing.BorderFactory.createEtchedBorder());
+        lblFace.setFocusable(false);
+
+        btnSalvarFace.setText("Salvar Face");
+        btnSalvarFace.setEnabled(false);
+        btnSalvarFace.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnSalvarFaceActionPerformed(evt);
+            }
+        });
+
+        btnRemover.setText("Remover Cadastro");
+        btnRemover.setEnabled(false);
+        btnRemover.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnRemoverActionPerformed(evt);
+            }
+        });
+
+        btnSair.setText("Finalizar Treinamento");
+        btnSair.setEnabled(false);
+        btnSair.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnSairActionPerformed(evt);
+            }
+        });
+
+        txtLog.setColumns(20);
+        txtLog.setFont(new java.awt.Font("Dialog", 0, 11)); // NOI18N
+        txtLog.setRows(5);
+        jScrollPane3.setViewportView(txtLog);
+
+        lblNome.setText("Nome:");
+
+        lblMatricula.setText("Matrícula:");
+
+        btnFimReconhecimento.setText("Finalizar Reconhecimento");
+        btnFimReconhecimento.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnFimReconhecimentoActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
+        getContentPane().setLayout(layout);
+        layout.setHorizontalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 150, Short.MAX_VALUE)
+                    .addComponent(btnTreinamento, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(btnRemover)
+                    .addComponent(txtIdentificacao, javax.swing.GroupLayout.DEFAULT_SIZE, 160, Short.MAX_VALUE)
+                    .addComponent(lblFace, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(btnSalvarFace)
+                    .addComponent(lblNome)
+                    .addComponent(lblMatricula)
+                    .addComponent(txtMatricula)
+                    .addComponent(btnSair, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGap(18, 18, 18)
+                .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 2, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 236, Short.MAX_VALUE)
+                    .addComponent(btnReconhecimento, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(btnFimReconhecimento, javax.swing.GroupLayout.DEFAULT_SIZE, 236, Short.MAX_VALUE))
+                .addContainerGap())
+        );
+        layout.setVerticalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jSeparator1)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(btnReconhecimento)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(btnFimReconhecimento)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 320, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(btnTreinamento)
+                            .addComponent(btnSair))
+                        .addGap(18, 18, 18)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(lblFace, javax.swing.GroupLayout.PREFERRED_SIZE, 160, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(lblMatricula, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(txtMatricula, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(lblNome, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(txtIdentificacao, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addComponent(btnSalvarFace)
+                                .addGap(24, 24, 24)
+                                .addComponent(btnRemover))
+                            .addComponent(jScrollPane1))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+        );
+
+        pack();
+    }// </editor-fold>//GEN-END:initComponents
+
+    private void btnReconhecimentoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnReconhecimentoActionPerformed
+        try {
+            painelReconhecimento = new PainelReconhecimento(reconhecedor);
+        } catch (FrameGrabber.Exception ex) {
+            Logger.getLogger(telaPrincipal.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }//GEN-LAST:event_btnReconhecimentoActionPerformed
+
+    private void btnTreinamentoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnTreinamentoActionPerformed
+        btnRemover.setEnabled(true);
+        btnSair.setEnabled(true);
+        btnSalvarFace.setEnabled(true);
+        cadastroFace = new CadastroFace();
+    }//GEN-LAST:event_btnTreinamentoActionPerformed
+
+    private void btnSalvarFaceActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSalvarFaceActionPerformed
+        String cadastro = txtIdentificacao.getText();
+        int ID = Integer.parseInt(txtMatricula.getText());
+        btnRemover.setEnabled(false);
+        btnSair.setEnabled(false);
+        if (!listaCadastros.contains(cadastro)) {
+            listaCadastros.add(cadastro);
+        }
+
+        for (int i = 0; i < reconhecedor.getNUMERO_IMAGENS_PESSOA(); i++) {
+            JOptionPane.showMessageDialog(null, "CONTAGEM DE FOTOS: " + (contaFotos - 1) +
+                                           "\n FOTOS NECESSESÁRIAS: " + (reconhecedor.getNUMERO_IMAGENS_PESSOA() - (contaFotos - 1)));
+
+            cadastroFace.getFacePanel().SalvarFace(cadastro, ID, contaFotos);
+            contaFotos++;
+            if (contaFotos > reconhecedor.getNUMERO_IMAGENS_PESSOA()) {
+                btnRemover.setEnabled(true);
+                btnSair.setEnabled(true);
+                contaFotos = 1;
+                int retorno = reconhecedor.Treinamento();
+                if (retorno == 0) {
+                    JOptionPane.showMessageDialog(null, "Fotos salvas com sucesso!", "SUCESSO!", JOptionPane.INFORMATION_MESSAGE);
+                } else if (retorno == 1) {
+                    JOptionPane.showMessageDialog(null, "Não há imagens no sistema!\n Ninguém será reconhecido!", "CUIDADO!", JOptionPane.WARNING_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Erro! Não foi possível treinar o reconhecedor!\n\n Favor tentar novamente!", "ERRO!", JOptionPane.ERROR_MESSAGE);
+                }
+                
+                
+            }
+            lstCadastros.setListData(listaCadastros);
+        }
+    }//GEN-LAST:event_btnSalvarFaceActionPerformed
+
+    private void btnRemoverActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnRemoverActionPerformed
+        int confirmacao = 0;
+        confirmacao = JOptionPane.showConfirmDialog(this, "Tem certeza que deseja excluir o cadastro selecionado?", "Cuidado!", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirmacao == JOptionPane.YES_OPTION) {
+            String cadastro = lstCadastros.getSelectedValue();
+            lstCadastros.clearSelection();
+            listaCadastros.remove(cadastro);
+            txtIdentificacao.setText("");
+            txtMatricula.setText("");
+            lstCadastros.setListData(listaCadastros);
+            lblFace.setEnabled(false);
+
+            File pastaImagens = new File(BDFACES);
+            FilenameFilter filtroImagens = (File dir, String name) -> {
+                name = name.toLowerCase();
+                return name.contains(cadastro.toLowerCase());
+            };
+
+            File[] arquivoImagens = pastaImagens.listFiles(filtroImagens);
+
+            for (File imagem : arquivoImagens) {
+                imagem.delete();
+            }
+        }
+    }//GEN-LAST:event_btnRemoverActionPerformed
+
+    private void btnSairActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSairActionPerformed
+        btnRemover.setEnabled(false);
+        btnSalvarFace.setEnabled(false);
+        btnSalvarFace.setEnabled(false);
+        cadastroFace.getFacePanel().closeDown();
+        cadastroFace.dispose();
+    }//GEN-LAST:event_btnSairActionPerformed
+
+    private void lstCadastrosValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_lstCadastrosValueChanged
+        if (lstCadastros.getSelectedValue() != null) {
+            lblFace.setEnabled(true);
+            try {
+                BufferedImage facebuff = null;
+
+                for (Map.Entry<Object, Object> entry : reconhecedor.getDataMap().entrySet()) {
+                    if (entry.getValue().equals(lstCadastros.getSelectedValue())) {
+                        System.out.println("src\\fotos\\" + entry.getKey() + "."
+                                + lstCadastros.getSelectedValue() + "." + "0.jpg");
+                        facebuff = ImageIO.read(new File("src\\fotos\\" + entry.getKey() + "."
+                                + lstCadastros.getSelectedValue() + "." + "0.jpg"));
+                        txtMatricula.setText(entry.getKey().toString());
+                    }
+                }
+                txtIdentificacao.setText(lstCadastros.getSelectedValue());
+                lblFace.setIcon(new ImageIcon(facebuff));
+
+            } catch (IOException ex) {
+                Logger.getLogger(telaPrincipal.class
+                        .getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }//GEN-LAST:event_lstCadastrosValueChanged
+
+    private void btnFimReconhecimentoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFimReconhecimentoActionPerformed
+        painelReconhecimento.PararExecucao();
+
+    }//GEN-LAST:event_btnFimReconhecimentoActionPerformed
+
+    public static void SetTextoLog(String texto) {
+        txtLog.append(texto);
+    }
+
+    /**
+     * @param args the command line arguments
+     */
+    public static void main(String args[]) {
+        /* Set the Nimbus look and feel */
+        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
+        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
+         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
+         */
+        try {
+            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+                if ("Metal".equals(info.getName())) {
+                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
+                    break;
+
+                }
+            }
+        } catch (ClassNotFoundException ex) {
+            java.util.logging.Logger.getLogger(telaPrincipal.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
+
+        } catch (InstantiationException ex) {
+            java.util.logging.Logger.getLogger(telaPrincipal.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
+
+        } catch (IllegalAccessException ex) {
+            java.util.logging.Logger.getLogger(telaPrincipal.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
+
+        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
+            java.util.logging.Logger.getLogger(telaPrincipal.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        }
+        //</editor-fold>
+
+        /* Create and display the form */
+        java.awt.EventQueue.invokeLater(() -> {
+            new telaPrincipal().setVisible(true);
+        });
+    }
+
+    // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JToggleButton btnFimReconhecimento;
+    private javax.swing.JToggleButton btnReconhecimento;
+    private javax.swing.JButton btnRemover;
+    private javax.swing.JButton btnSair;
+    private javax.swing.JButton btnSalvarFace;
+    private javax.swing.JToggleButton btnTreinamento;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPane3;
+    private javax.swing.JSeparator jSeparator1;
+    private javax.swing.JLabel lblFace;
+    private javax.swing.JLabel lblMatricula;
+    private javax.swing.JLabel lblNome;
+    private javax.swing.JList<String> lstCadastros;
+    private javax.swing.JTextField txtIdentificacao;
+    private static javax.swing.JTextArea txtLog;
+    private javax.swing.JTextField txtMatricula;
+    // End of variables declaration//GEN-END:variables
+}
