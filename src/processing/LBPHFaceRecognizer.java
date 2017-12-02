@@ -14,8 +14,6 @@ import java.io.IOException;
 import java.nio.IntBuffer;
 import java.util.Properties;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.bytedeco.javacpp.DoublePointer;
 import org.bytedeco.javacpp.IntPointer;
 import org.bytedeco.javacpp.opencv_core;
@@ -44,11 +42,10 @@ public class LBPHFaceRecognizer {
     private FaceRecognizer lbph = null;
 
     public LBPHFaceRecognizer() {
-        portaCOM = new ArduinoSerial("COM3");
-        portaCOM.initialize();
+//        portaCOM = new ArduinoSerial("COM3");
+//        portaCOM.initialize();
         criaModelo();
         carregaDados();
-
     }
 
     private void criaModelo() {
@@ -127,7 +124,7 @@ public class LBPHFaceRecognizer {
         mapaDados.store(fos, "");
         fos.close();
 
-        telaPrincipal.SetTextoLog("concluído.");
+        telaPrincipal.SetTextoLog("concluído.\n");
     }
 
     public int Treinamento() {
@@ -138,10 +135,9 @@ public class LBPHFaceRecognizer {
                 return nome.endsWith(".jpg") || nome.endsWith(".gif") || nome.endsWith(".png") || nome.endsWith(".pgm");
             };
             
-            telaPrincipal.SetTextoLog("Carregando imagens para treinamento...");
+            telaPrincipal.SetTextoLog("Carregando imagens para treinamento...\n");
             File[] arquivos = diretorio.listFiles(filtroImagem);
             if (arquivos.length == 0) {
-                telaPrincipal.SetTextoLog("Sem imagens para treinamento! Sistema sem faces para reconhecer!");
                 mapaDados.clear();
                 lbph.clear();
                 salvaDados();
@@ -167,7 +163,7 @@ public class LBPHFaceRecognizer {
             }
             telaPrincipal.SetTextoLog("Treinando modelo binário...");
             lbph.train(fotos, rotulos);
-            telaPrincipal.SetTextoLog("concluído!");
+            telaPrincipal.SetTextoLog("concluído!\n");
             salvaDados();
             return 0;
         } catch (Exception ex) {

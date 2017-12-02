@@ -367,10 +367,10 @@ public class PainelCadastro extends JPanel implements Runnable {
             return null;
         } else if (total > 1) //Este caso não deveria ocorrer. Incluído por segurança
         {
-            telaPrincipal.SetTextoLog("Multiplas faces detectadas (" + total + "); utilizando a primeira\n");
+            //telaPrincipal.SetTextoLog("Multiplas faces detectadas (" + total + "); utilizando a primeira\n");
             // telaPrincipal.SetTextoLog("Multiple faces detected (" + total + "); using the first");
         } else {
-            telaPrincipal.SetTextoLog("Face detectada\n");
+            //telaPrincipal.SetTextoLog("Face detectada\n");
             //telaPrincipal.SetTextoLog("Face detected");
         }
 
