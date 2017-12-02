@@ -5,277 +5,182 @@
  */
 package processing;
 
+import gui.telaPrincipal;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.util.Iterator;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.nio.IntBuffer;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.bytedeco.javacpp.DoublePointer;
 import org.bytedeco.javacpp.IntPointer;
+import org.bytedeco.javacpp.opencv_core;
 import static org.bytedeco.javacpp.opencv_core.CV_32SC1;
-import org.bytedeco.javacpp.opencv_core.CvMat;
-import static org.bytedeco.javacpp.opencv_core.IPL_DEPTH_8U;
-import org.bytedeco.javacpp.opencv_core.IplImage;
 import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.MatVector;
-import static org.bytedeco.javacpp.opencv_core.cvLoad;
 import org.bytedeco.javacpp.opencv_face.FaceRecognizer;
 import static org.bytedeco.javacpp.opencv_face.createLBPHFaceRecognizer;
-import static org.bytedeco.javacpp.opencv_imgcodecs.cvLoadImage;
-import static org.bytedeco.javacpp.opencv_imgcodecs.cvSaveImage;
-import static org.bytedeco.javacpp.opencv_imgproc.CV_BGR2GRAY;
-import static org.bytedeco.javacpp.opencv_imgproc.cvCvtColor;
+import static org.bytedeco.javacpp.opencv_imgcodecs.CV_LOAD_IMAGE_GRAYSCALE;
+import static org.bytedeco.javacpp.opencv_imgcodecs.imread;
+import static org.bytedeco.javacpp.opencv_imgproc.resize;
 
 public class LBPHFaceRecognizer {
 
-    private static final String faceDataFolder = "C:\\TCC.UniSecurity\\";
-    private final String imageDataFolder = faceDataFolder + "src\\fotos\\";
-    private final String frBinary_DataFile = faceDataFolder + "src\\recursos\\frBinary.dat";
-    private static final String personNameMappingFileName = faceDataFolder + "src\\recursos\\personNumberMap.properties";
+    private static final String caminhoMapaDados = "src\\recursos\\personNumberMap.properties";
+    private final String pastaImagens = "src\\fotos\\";
+    private final String LBPH_DADOS = "src\\recursos\\frBinary.dat";
 
-    private Properties dataMap = new Properties();
+    private Properties mapaDados = new Properties();
 
     private ArduinoSerial portaCOM;
 
-    private final int NUM_IMAGES_PER_PERSON = 10;
-    double binaryTreshold = 130;
-    int highConfidenceLevel = 75;
+    private final int NUMERO_IMAGENS_PESSOA = 10;
+    double Threshold = 130;
+    int nivelConfianca = 75;
 
-    private FaceRecognizer fr_binary = null;
+    private FaceRecognizer lbph = null;
 
     public LBPHFaceRecognizer() {
         portaCOM = new ArduinoSerial("COM3");
         portaCOM.initialize();
-        createModels();
-        loadTrainingData();
+        criaModelo();
+        carregaDados();
 
     }
 
-    private void createModels() {
-        fr_binary = createLBPHFaceRecognizer(1, 8, 8, 8, binaryTreshold);
-//        ReconizerTraining rt = new ReconizerTraining(this);
-//        fr_binary.save("frBinary.dat");
+    private void criaModelo() {
+        lbph = createLBPHFaceRecognizer(1, 8, 8, 8, Threshold);
     }
+    
+    public String identificaFace(Mat imagem) {
+        String nomePessoa = "";
 
-    public String identifyFace(IplImage image) {
-        synchronized (dataMap) {
-            String personName = "";
+        // Carrega as chaves contidas no mapaDados
+        Set chaves = mapaDados.keySet();
 
-            Mat imagem = new Mat(image);
+        if (chaves.size() > 0) {
+            // Variáveis para identificação
+            IntPointer rotulo = new IntPointer(1);
+            DoublePointer confianca = new DoublePointer(1);
+            int resultado = -1;
 
-            Set keys = dataMap.keySet();
+            // Chama o método de reconhecimento
+            lbph.predict(imagem, rotulo, confianca);
+            // Derivando nível de confiança contra o threshold
+            resultado = rotulo.get(0);
 
-            if (keys.size() > 0) {
-                IntPointer ids = new IntPointer(1);
-                DoublePointer distance = new DoublePointer(1);
-                int result = -1;
-
-                fr_binary.predict(imagem, ids, distance);
-                // Derivando nível de confiança contra o threshold
-                result = ids.get(0);
-
-                if (result > -1 && distance.get(0) < highConfidenceLevel) {
-                    personName = (String) dataMap.get("" + result) + " confiança: " + distance.get(0);
-                    if (personName != null) {
-                        portaCOM.send("l");
-                        portaCOM.send("d");
-                    }
-                } else {
-                    personName = "Não identificado!";
-                }
-            }
-            return personName;
-        }
-    }
-
-    public String identifyFace(Mat imagem) {
-        synchronized (dataMap) {
-            String personName = "";
-
-            Set keys = dataMap.keySet();
-
-            if (keys.size() > 0) {
-                IntPointer rotulo = new IntPointer(1);
-                DoublePointer confianca = new DoublePointer(1);
-                int result = -1;
-
-                fr_binary.predict(imagem, rotulo, confianca);
-                // Derivando nível de confiança contra o threshold
-                result = rotulo.get(0);
-
-                if (result > -1 && rotulo.get(0) < highConfidenceLevel) {
-                    personName = (String) dataMap.get("" + result) + " confianca: " + confianca.get(0);
-                    if (personName != null) {
-                        portaCOM.send("l");
-                        portaCOM.send("d");
-                    }
-                } else {
-                    personName = "Não identificado!";
-                }
-            }
-
-            return personName;
-        }
-    }
-
-    // The logic to learn a new face is to store the recorded images to a folder and retrain the model
-    // will be replaced once update feature is available
-    // Bloco esta de forma sincronizada pois as threads de identificação também podem utilizar o arquivo
-    // binário para localizar a pessoa identificada
-    public boolean saveNewFace(String personName, IplImage[] images) throws Exception {
-        int memberCounter = dataMap.size();
-        if (dataMap.containsValue(personName)) {
-            Set keys = dataMap.keySet();
-            Iterator ite = keys.iterator();
-            while (ite.hasNext()) {
-                String personKeyForTraining = (String) ite.next();
-                String personNameForTraining = (String) dataMap.getProperty(personKeyForTraining);
-                if (personNameForTraining.equals(personName)) {
-                    memberCounter = Integer.parseInt(personKeyForTraining);
-                    System.err.println("Pessoa já existe no banco de dados.. aprendendo novamente..");
-                }
+            // Verifica se a identificação é confiável
+            if (resultado > -1 && confianca.get(0) < nivelConfianca) {
+                //Se sim, atribui à variável nomePessoa o respectivo nome extraído do mapaDados
+                nomePessoa = (String) mapaDados.get("" + resultado) + " confianca: " + confianca.get(0);
+                
+                // Emite o sinal para a liberação da catraca
+//                portaCOM.send("l");
+//                portaCOM.send("d");
+                
+            } else {
+                // Caso identificação não seja confiável, atribui à variável nomePessoa como "Não identificada"
+                nomePessoa = "Não identificado!";
             }
         }
-        dataMap.put("" + memberCounter, personName);
-        storeTrainingImages(personName, images);
-        retrainAll();
-
-        return true;
-
+        // Retorna nome da pessoa identificada, ou "Não identificado" caso a identificação não for bem sucedida
+        return nomePessoa;
     }
 
-    public void retrainAll() throws Exception {
-        synchronized (fr_binary) {
-            synchronized (dataMap) {
-                synchronized (frBinary_DataFile) {
-
-                    Set keys = dataMap.keySet();
-                    if (keys.size() > 0) {
-                        MatVector trainImages = new MatVector(keys.size() * NUM_IMAGES_PER_PERSON);
-                        CvMat trainLabels = CvMat.create(keys.size() * NUM_IMAGES_PER_PERSON, 1, CV_32SC1);
-                        Iterator ite = keys.iterator();
-                        int count = 0;
-
-                        System.err.print("Carregando imagens para treinamento...");
-                        while (ite.hasNext()) {
-                            String personKeyForTraining = (String) ite.next();
-                            String personNameForTraining = (String) dataMap.getProperty(personKeyForTraining);
-                            IplImage[] imagesForTraining = readImages(personNameForTraining);
-                            IplImage grayImage = IplImage.create(imagesForTraining[0].width(), imagesForTraining[0].height(), IPL_DEPTH_8U, 1);
-
-                            for (int i = 0; i < imagesForTraining.length; i++) {
-                                trainLabels.put(count, 0, Integer.parseInt(personKeyForTraining));
-                                cvCvtColor(imagesForTraining[i], grayImage, CV_BGR2GRAY);
-                                Mat imagemTreino = new Mat(grayImage);
-                                trainImages.put(count, imagemTreino);
-                                count++;
-                            }
-                            //storeNormalizedImages(personNameForTraining, imagesForTraining);
-                        }
-
-                        System.err.println("concluído.");
-
-                        System.err.print("Treinando modelo binário ....");
-                        Mat imagemTreino = new Mat(trainLabels);
-                        fr_binary.train(trainImages, imagemTreino);
-                        System.err.println("concluído.");
-                        storeTrainingData();
-                    }
-                }
-            }
-        }
-
-    }
-
-    private void loadTrainingData() {
+    private void carregaDados() {
 
         try {
-            File personNameMapFile = new File(personNameMappingFileName);
-            if (personNameMapFile.exists()) {
-                FileInputStream fis = new FileInputStream(personNameMappingFileName);
-                dataMap.load(fis);
+            File arquivoMapaDados = new File(caminhoMapaDados);
+            if (arquivoMapaDados.exists()) {
+                FileInputStream fis = new FileInputStream(caminhoMapaDados);
+                mapaDados.load(fis);
                 fis.close();
             }
 
-            System.err.print("Carregando modelo binário ....");
-            fr_binary.load(frBinary_DataFile);
-            System.err.println("concluído.");
+            telaPrincipal.SetTextoLog("Carregando modelo binário ....");
+            lbph.load(LBPH_DADOS);
+            telaPrincipal.SetTextoLog("concluído.\n");
 
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private void storeTrainingData() throws Exception {
-        synchronized (fr_binary) {
-            synchronized (dataMap) {
+    private void salvaDados() throws Exception {
 
-                System.err.print("Salvando modelo binário ....");
+        telaPrincipal.SetTextoLog("Salvando modelo binário ....");
 
-                File binaryDataFile = new File(frBinary_DataFile);
-                if (binaryDataFile.exists()) {
-                    binaryDataFile.delete();
-                }
-                fr_binary.save(frBinary_DataFile);
+        File arquivoBinario = new File(LBPH_DADOS);
+        if (arquivoBinario.exists()) {
+            arquivoBinario.delete();
+        }
+        lbph.save(LBPH_DADOS);
 
-                File personNameMapFile = new File(personNameMappingFileName);
-                if (personNameMapFile.exists()) {
-                    personNameMapFile.delete();
-                }
-                FileOutputStream fos = new FileOutputStream(personNameMapFile, false);
-                dataMap.store(fos, "");
-                fos.close();
+        File arquivoMapaDados = new File(caminhoMapaDados);
+        if (arquivoMapaDados.exists()) {
+            arquivoMapaDados.delete();
+        }
+        FileOutputStream fos = new FileOutputStream(arquivoMapaDados, false);
+        mapaDados.store(fos, "");
+        fos.close();
 
-                System.err.println("concluído.");
+        telaPrincipal.SetTextoLog("concluído.");
+    }
+
+    public int Treinamento() {
+        try {
+            File diretorio = new File(pastaImagens);
+            FilenameFilter filtroImagem = (File dir, String nome) -> 
+                    {
+                return nome.endsWith(".jpg") || nome.endsWith(".gif") || nome.endsWith(".png") || nome.endsWith(".pgm");
+            };
+            
+            telaPrincipal.SetTextoLog("Carregando imagens para treinamento...");
+            File[] arquivos = diretorio.listFiles(filtroImagem);
+            if (arquivos.length == 0) {
+                telaPrincipal.SetTextoLog("Sem imagens para treinamento! Sistema sem faces para reconhecer!");
+                mapaDados.clear();
+                lbph.clear();
+                salvaDados();
+                return 1;
             }
+            opencv_core.MatVector fotos = new opencv_core.MatVector(arquivos.length);
+            opencv_core.Mat rotulos = new opencv_core.Mat(arquivos.length, 1, CV_32SC1);
+            IntBuffer rotulosBuffer = rotulos.createBuffer();
+            int contador = 0;
+            for (File imagem : arquivos) {
+                opencv_core.Mat foto = imread(imagem.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
+                int classe = Integer.parseInt(imagem.getName().split("\\.")[0]);
+                String nome = imagem.getName().split("\\.")[1];
+
+                //System.out.println(classe);   //Imprime a classe de cada grupo de imagem (para debug)
+                resize(foto, foto, new opencv_core.Size(160, 160));
+                fotos.put(contador, foto);
+                rotulosBuffer.put(contador, classe);
+                if (!mapaDados.contains(nome)) {
+                    mapaDados.put("" + classe, nome);
+                }
+                contador++;
+            }
+            telaPrincipal.SetTextoLog("Treinando modelo binário...");
+            lbph.train(fotos, rotulos);
+            telaPrincipal.SetTextoLog("concluído!");
+            salvaDados();
+            return 0;
+        } catch (Exception ex) {
+            return 2;
         }
     }
 
-    public void storeTrainingImages(String personName, IplImage[] images) {
-        synchronized (imageDataFolder) {
-            for (int i = 0; i < images.length; i++) {
-                String imageFileName = imageDataFolder + personName + "-" + i + ".jpg";
-                File imgFile = new File(imageFileName);
-                if (imgFile.exists()) {
-                    imgFile.delete();
-                }
-                cvSaveImage(imageFileName, images[i]);
-            }
-        }
-    }
-
-    private IplImage[] readImages(String personName) {
-        synchronized (imageDataFolder) {
-            File imgFolder = new File(imageDataFolder);
-            IplImage[] images = null;
-            if (imgFolder.isDirectory() && imgFolder.exists()) {
-                images = new IplImage[NUM_IMAGES_PER_PERSON];
-                for (int i = 1; i <= NUM_IMAGES_PER_PERSON; i++) {
-                    String imageFileName = imageDataFolder + personName + "-" + i + ".jpg";
-                    IplImage img = cvLoadImage(imageFileName);
-                    images[i - 1] = img;
-                    if (images[i - 1] == null) {
-                        continue;
-                    }
-
-                }
-            }
-            return images;
-        }
-
-    }
-
-    public void updateTraining(String personName, IplImage[] imagens) {
-        // fr_binary.update(mv,imagens);
-    }
-
-    public int getNUM_IMAGES_PER_PERSON() {
-        return NUM_IMAGES_PER_PERSON;
+    public int getNUMERO_IMAGENS_PESSOA() {
+        return NUMERO_IMAGENS_PESSOA;
     }
 
     public Properties getDataMap() {
-        return dataMap;
+        return mapaDados;
     }
 
 }
