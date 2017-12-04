@@ -59,8 +59,8 @@ public class PainelCadastro extends JPanel implements Runnable {
     private static String FACE_NOME;
     private static int FACE_ID;
     private static int AMOSTRA = 0;
-    private static final int FACE_LARGURA = 160;
-    private static final int FACE_ALTURA = 160;
+    private static final int FACE_LARGURA = 120;
+    private static final int FACE_ALTURA = 140;
     private static volatile boolean salvarFace = false;
     
     // Armazena as coordenadas da face
