@@ -65,7 +65,7 @@ public class PainelReconhecimento implements Runnable {
         detectorFace = new CascadeClassifier(FACE_CASCADE);
 
         cFrame = new CanvasFrame("Reconhecimento", CanvasFrame.getDefaultGamma() / camera.getGamma());
-        cFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        cFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         cFrame.setLocation(621, 0);
         frameCapturado = null;
         imagemColorida = new Mat();

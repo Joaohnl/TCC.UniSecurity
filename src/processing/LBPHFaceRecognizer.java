@@ -42,7 +42,7 @@ public class LBPHFaceRecognizer {
     private FaceRecognizer lbph = null;
 
     public LBPHFaceRecognizer() {
-        portaCOM = new ArduinoSerial("COM3");
+        portaCOM = new ArduinoSerial("COM5");
         portaCOM.initialize();
         criaModelo();
         carregaDados();

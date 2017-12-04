@@ -84,7 +84,7 @@ public class telaPrincipal extends javax.swing.JFrame {
         txtIdentificacao = new javax.swing.JTextField();
         btnSalvarFace = new javax.swing.JButton();
         btnRemover = new javax.swing.JButton();
-        btnSair = new javax.swing.JButton();
+        btnFimTreinamento = new javax.swing.JButton();
         jScrollPane3 = new javax.swing.JScrollPane();
         txtLog = new javax.swing.JTextArea();
         lblNome = new javax.swing.JLabel();
@@ -140,11 +140,11 @@ public class telaPrincipal extends javax.swing.JFrame {
             }
         });
 
-        btnSair.setText("Finalizar Treinamento");
-        btnSair.setEnabled(false);
-        btnSair.addActionListener(new java.awt.event.ActionListener() {
+        btnFimTreinamento.setText("Finalizar Treinamento");
+        btnFimTreinamento.setEnabled(false);
+        btnFimTreinamento.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btnSairActionPerformed(evt);
+                btnFimTreinamentoActionPerformed(evt);
             }
         });
 
@@ -158,6 +158,7 @@ public class telaPrincipal extends javax.swing.JFrame {
         lblMatricula.setText("Matrícula:");
 
         btnFimReconhecimento.setText("Finalizar Reconhecimento");
+        btnFimReconhecimento.setEnabled(false);
         btnFimReconhecimento.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnFimReconhecimentoActionPerformed(evt);
@@ -182,7 +183,7 @@ public class telaPrincipal extends javax.swing.JFrame {
                     .addComponent(lblNome)
                     .addComponent(lblMatricula)
                     .addComponent(txtMatricula)
-                    .addComponent(btnSair, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(btnFimTreinamento, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGap(18, 18, 18)
                 .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 2, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
@@ -208,7 +209,7 @@ public class telaPrincipal extends javax.swing.JFrame {
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(btnTreinamento)
-                            .addComponent(btnSair))
+                            .addComponent(btnFimTreinamento))
                         .addGap(18, 18, 18)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                             .addGroup(layout.createSequentialGroup()
@@ -233,6 +234,10 @@ public class telaPrincipal extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnReconhecimentoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnReconhecimentoActionPerformed
+        btnTreinamento.setEnabled(false);
+        btnFimTreinamento.setEnabled(false);
+        btnTreinamento.setEnabled(false);
+        btnFimReconhecimento.setEnabled(true);
         try {
             painelReconhecimento = new PainelReconhecimento((reconhecedor));
             threadReconhecimento = new Thread(painelReconhecimento);
@@ -244,8 +249,11 @@ public class telaPrincipal extends javax.swing.JFrame {
 
     private void btnTreinamentoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnTreinamentoActionPerformed
         btnRemover.setEnabled(true);
-        btnSair.setEnabled(true);
+        btnFimTreinamento.setEnabled(true);
         btnSalvarFace.setEnabled(true);
+        btnReconhecimento.setEnabled(false);
+        btnFimReconhecimento.setEnabled(false);
+        btnTreinamento.setEnabled(false);
         cadastroFace = new CadastroFace();
     }//GEN-LAST:event_btnTreinamentoActionPerformed
 
@@ -253,9 +261,14 @@ public class telaPrincipal extends javax.swing.JFrame {
         String cadastro = txtIdentificacao.getText();
         int ID = Integer.parseInt(txtMatricula.getText());
         btnRemover.setEnabled(false);
-        btnSair.setEnabled(false);
+        btnFimTreinamento.setEnabled(false);
         if (!listaCadastros.contains(cadastro)) {
             listaCadastros.add(cadastro);
+        }
+        
+        if (cadastros.containsKey(txtMatricula.getText())) {
+            JOptionPane.showMessageDialog(this, "Cadastro já existente!\n\nImpossível continuar esta operação!", "ERRO!", JOptionPane.OK_OPTION);
+            return;
         }
 
         for (int i = 0; i < reconhecedor.getNUMERO_IMAGENS_PESSOA(); i++) {
@@ -266,7 +279,7 @@ public class telaPrincipal extends javax.swing.JFrame {
             contaFotos++;
             if (contaFotos > reconhecedor.getNUMERO_IMAGENS_PESSOA()) {
                 btnRemover.setEnabled(true);
-                btnSair.setEnabled(true);
+                btnFimTreinamento.setEnabled(true);
                 contaFotos = 1;
                 int retorno = reconhecedor.Treinamento();
                 if (retorno == 0) {
@@ -307,10 +320,13 @@ public class telaPrincipal extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_btnRemoverActionPerformed
 
-    private void btnSairActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSairActionPerformed
+    private void btnFimTreinamentoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFimTreinamentoActionPerformed
         btnRemover.setEnabled(false);
         btnSalvarFace.setEnabled(false);
         btnSalvarFace.setEnabled(false);
+        btnReconhecimento.setEnabled(true);
+        btnTreinamento.setEnabled(true);
+        btnFimTreinamento.setEnabled(false);
         cadastroFace.getFacePanel().closeDown();
         cadastroFace.dispose();
 
@@ -322,7 +338,7 @@ public class telaPrincipal extends javax.swing.JFrame {
         } else {
             JOptionPane.showMessageDialog(this, "Erro! Não foi possível treinar o reconhecedor!\n\n Favor tentar novamente!", "ERRO!", JOptionPane.ERROR_MESSAGE);
         }
-    }//GEN-LAST:event_btnSairActionPerformed
+    }//GEN-LAST:event_btnFimTreinamentoActionPerformed
 
     private void lstCadastrosValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_lstCadastrosValueChanged
         if (lstCadastros.getSelectedValue() != null) {
@@ -348,6 +364,9 @@ public class telaPrincipal extends javax.swing.JFrame {
     }//GEN-LAST:event_lstCadastrosValueChanged
 
     private void btnFimReconhecimentoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFimReconhecimentoActionPerformed
+        btnTreinamento.setEnabled(true);
+        btnReconhecimento.setEnabled(true);
+        btnFimReconhecimento.setEnabled(false);
         painelReconhecimento.PararExecucao();
     }//GEN-LAST:event_btnFimReconhecimentoActionPerformed
 
@@ -398,9 +417,9 @@ public class telaPrincipal extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JToggleButton btnFimReconhecimento;
+    private javax.swing.JButton btnFimTreinamento;
     private javax.swing.JToggleButton btnReconhecimento;
     private javax.swing.JButton btnRemover;
-    private javax.swing.JButton btnSair;
     private javax.swing.JButton btnSalvarFace;
     private javax.swing.JToggleButton btnTreinamento;
     private javax.swing.JScrollPane jScrollPane1;
