@@ -42,8 +42,8 @@ public class LBPHFaceRecognizer {
     private FaceRecognizer lbph = null;
 
     public LBPHFaceRecognizer() {
-//        portaCOM = new ArduinoSerial("COM3");
-//        portaCOM.initialize();
+        portaCOM = new ArduinoSerial("COM3");
+        portaCOM.initialize();
         criaModelo();
         carregaDados();
     }
@@ -75,8 +75,8 @@ public class LBPHFaceRecognizer {
                 nomePessoa = (String) mapaDados.get("" + resultado) + " confianca: " + confianca.get(0);
                 
                 // Emite o sinal para a liberação da catraca
-//                portaCOM.send("l");
-//                portaCOM.send("d");
+                portaCOM.send("l");
+                portaCOM.send("d");
                 
             } else {
                 // Caso identificação não seja confiável, atribui à variável nomePessoa como "Não identificada"
